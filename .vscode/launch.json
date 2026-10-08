@@ -12,12 +12,13 @@
             },
             "runtimeArgs": ["--sourcemap", "--config", "configs/electron.vite.config.ts"],
             "env": {
-                "REMOTE_DEBUGGING_PORT": "9222"
+                "REMOTE_DEBUGGING_PORT": "15174"
             }
         },
         {
             "name": "Debug Renderer Process",
-            "port": 9222,
+            "address": "127.0.0.1",
+            "port": 15174,
             "request": "attach",
             "type": "chrome",
             "webRoot": "${workspaceFolder}/renderer",

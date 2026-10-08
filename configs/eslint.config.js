@@ -8,7 +8,7 @@ import yml from "eslint-plugin-yml";
 import local from "./css.js";
 
 export default defineConfig(
-    { ignores: ["**/node_modules", "**/dist", "pnpm-lock.yaml"] },
+    { ignores: ["**/node_modules", "**/dist", "**/build", "**/.local", "pnpm-lock.yaml"] },
     {
         files: ["**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx,svelte}"],
         extends: [
