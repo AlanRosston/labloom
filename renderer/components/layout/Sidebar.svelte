@@ -3,7 +3,7 @@
         <!-- eslint-disable-next-line svelte/no-at-html-tags -->
         {@html home}
     </button>
-    <button class="icon-container">
+    <button class="icon-container" title="订阅" aria-label="打开订阅" onclick={openFeed}>
         <!-- eslint-disable-next-line svelte/no-at-html-tags -->
         {@html rss}
     </button>
@@ -68,6 +68,8 @@
 
 
 <script lang="ts">
+    import { activateTab, addTab, getTabID } from "../Tab/api";
+    import { tabState } from "../Tab/state.svelte";
     import home from "../../assets/carbon--home.svg?raw";
     import rss from "../../assets/carbon--rss.svg?raw";
     import book from "../../assets/basil--book-outline.svg?raw";
@@ -76,4 +78,10 @@
     import ai from "../../assets/carbon--ai-agent.svg?raw";
     import add from "../../assets/carbon--add-large.svg?raw";
     import settings from "../../assets/carbon--settings.svg?raw";
+
+    function openFeed(): void {
+        const tab = tabState.groups.flatMap(group => group.tabs).find(tab => tab.type === "feed");
+        if (tab) activateTab(tab.id);
+        else addTab(tabState.focusedGroupId, { id: getTabID(), title: "订阅", type: "feed" });
+    }
 </script>

@@ -5,6 +5,7 @@ import { electronApp, is } from "@electron-toolkit/utils";
 import icon from "../resources/labloom-2x-trs.png?asset";
 import { AppStorage, developmentDataPath } from "./storage/app";
 import { Startup } from "./startup";
+import { registerFeed } from "./feed/ipc";
 
 
 // Set both paths before ready, so development also isolates Chromium state.
@@ -17,6 +18,7 @@ const sessionPath = join(dataPath, "chromium");
 mkdirSync(sessionPath, { recursive: true });
 app.setPath("sessionData", sessionPath);
 const startup = new Startup(storage);
+registerFeed(startup);
 let choosingWorkspace = false;
 
 function startupWindow(event: IpcMainInvokeEvent): BrowserWindow {

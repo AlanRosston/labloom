@@ -63,4 +63,9 @@ export class Startup {
         this.workspace?.database.close();
         this.workspace = null;
     }
+
+    getDatabase(): OpenWorkspace["database"] {
+        if (!this.workspace || this.state.status !== "ready") throw new Error("请先打开工作区。");
+        return this.workspace.database;
+    }
 }

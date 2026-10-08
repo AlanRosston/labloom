@@ -4,6 +4,14 @@ import type { AppAPI } from "../shared/types/startup";
 
 // Custom APIs for renderer
 const api: AppAPI = {
+    feed: {
+        getState: query => ipcRenderer.invoke("feed:get-state", query),
+        saveSource: source => ipcRenderer.invoke("feed:save-source", source),
+        removeSource: id => ipcRenderer.invoke("feed:remove-source", id),
+        refresh: sourceId => ipcRenderer.invoke("feed:refresh", sourceId),
+        setRead: (id, isRead) => ipcRenderer.invoke("feed:set-read", id, isRead),
+        openItem: id => ipcRenderer.invoke("feed:open-item", id)
+    },
     startup: {
         getState: () => ipcRenderer.invoke("startup:get-state"),
         chooseWorkspace: action => ipcRenderer.invoke("startup:choose-workspace", action),

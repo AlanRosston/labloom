@@ -1,0 +1,10 @@
+body {
+    overflow: auto;
+    background: var(--c-surface);
+}
+
+#app {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+}

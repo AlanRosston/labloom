@@ -18,6 +18,10 @@ type Tab_Settings = {
     type: "settings";
 };
 
+type Tab_Feed = {
+    type: "feed";
+};
+
 //todo: remove once papers can be opened as pages.
 type Tab_ReaderTest = {
     type: "reader-test";
@@ -31,6 +35,7 @@ export type Tab = {
     Tab_Overview |
     Tab_About |
     Tab_Settings |
+    Tab_Feed |
     Tab_ReaderTest
 );
 

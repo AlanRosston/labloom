@@ -38,6 +38,8 @@ pnpm dev
 pnpm build
 ```
 
+Feed 的使用方式、抓取流程、数据结构与当前限制见 [Feed 实现说明](docs/Feed实现说明.md)。
+
 ## 作者
 
 <a href="https://github.com/ljm12914"><img src="https://wsrv.nl/?url=github.com/ljm12914.png&amp;w=128&amp;h=128&amp;fit=cover&amp;mask=circle&amp;output=png" width="64" height="64" alt="@ljm12914" title="@ljm12914" /></a>
