@@ -1,6 +1,4 @@
-type Intrinsics = {
-    deleted: boolean;
-};
+import type { BuiltinAttrValues as Intrinsics } from "../attrs/builtins";
 
 type IntrinsicPageAttr = {
     [K in keyof Intrinsics]: {
@@ -14,7 +12,7 @@ type CustomPageAttr = {
 } & (
     | { type: "string"; value: string | null; }
     | { type: "number"; value: number | null; }
-    | { type: "boolean"; value: boolean; }
+    | { type: "boolean"; value: boolean | null; }
     | { type: "select"; value: string | null; }
 );
 

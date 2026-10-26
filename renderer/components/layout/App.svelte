@@ -31,6 +31,7 @@
     import Sidebar from "./Sidebar.svelte";
     import Main from "./Main.svelte";
     import Onboarding from "../startup/Onboarding.svelte";
+    import { logUpgradeFailure } from "../startup/log-upgrade-failure";
 
     let startup = $state<StartupState | null>(null);
     let pending = $state(true);
@@ -39,6 +40,7 @@
         pending = true;
         try {
             startup = await action();
+            logUpgradeFailure(startup);
         }
         catch (error) {
             startup = {
