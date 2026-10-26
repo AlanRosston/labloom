@@ -1,7 +1,9 @@
 <div
+    tabindex="0"
     style:width={direction === "horizontal" ? "100%" : thickness ? `${thickness}px` : "5px"}
     style:height={direction === "vertical" ? "100%" : thickness ? `${thickness}px` : "5px"}
     style:cursor={direction === "horizontal" ? "ns-resize" : "ew-resize"}
+    {onkeydown}
     {onpointerdown}
     {onpointermove}
     {onpointerup}
@@ -15,6 +17,9 @@
         flex-grow: 0;
         flex-shrink: 0;
         touch-action: none;
+    }
+    div:hover, div:focus {
+        background-color: var(--c-accent);
     }
 </style>
 
@@ -49,6 +54,16 @@
 
     function getPos(event: PointerEvent): number {
         return direction === "horizontal" ? event.clientY : event.clientX;
+    }
+    function onkeydown(event: KeyboardEvent): void {
+        if (event.defaultPrevented || event.isComposing || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
+        const decreaseKey = direction === "vertical" ? "ArrowLeft" : "ArrowUp";
+        const increaseKey = direction === "vertical" ? "ArrowRight" : "ArrowDown";
+        if (event.key !== decreaseKey && event.key !== increaseKey) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const value = origin + (event.key === decreaseKey ? -1 : 1);
+        changeCB(Math.min(max ?? Infinity, Math.max(min ?? -Infinity, value)));
     }
     function onpointerdown(event: PointerEvent): void {
         if (event.button !== 0) return;

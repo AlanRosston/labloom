@@ -18,8 +18,7 @@
         --search-gap: 2vw;
     }
     nav {
-        /* Note: We cannot ignore this and this only. */
-        app-region: drag;
+        -webkit-app-region: drag;
         flex-shrink: 0;
         display: grid;
         grid-template-columns:
@@ -31,8 +30,7 @@
         background-color: var(--c-navbar-background);
     }
     nav :global(button) {
-        /* Note: We cannot ignore this and this only. */
-        app-region: no-drag;
+        -webkit-app-region: no-drag;
     }
     .left-controls {
         display: flex;

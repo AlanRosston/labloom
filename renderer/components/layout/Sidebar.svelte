@@ -38,8 +38,7 @@
 
 <style>
     nav {
-        /* Note: We cannot ignore this and this only. */
-        app-region: drag;
+        -webkit-app-region: drag;
         background-color: var(--c-sidebar-background);
         height: 100%;
         width: 48px;
@@ -48,8 +47,7 @@
         justify-content: center;
     }
     nav :global(*) {
-        /* Note: We cannot ignore this and this only. */
-        app-region: no-drag;
+        -webkit-app-region: no-drag;
     }
     .icon-container {
         display: grid;
