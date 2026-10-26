@@ -1,61 +1,40 @@
-import { app, shell, BrowserWindow, dialog, ipcMain, type IpcMainInvokeEvent } from "electron";
+import { app, shell, BrowserWindow } from "electron";
 import { mkdirSync } from "node:fs";
-import { join } from "path";
-import { electronApp, is } from "@electron-toolkit/utils";
+import { join } from "node:path";
 import icon from "../resources/labloom-2x-trs.png?asset";
+import { appChannels } from "../shared/ipc";
+import { on } from "./ipc";
+import { captureConsole, LogDirectory } from "./logging";
 import { AppStorage, developmentDataPath } from "./storage/app";
-import { Startup } from "./startup";
-import { registerFeed } from "./feed/ipc";
+import { Startup } from "./startup/startup";
+import { registerStartupIPCs } from "./startup/ipc";
+import { registerFeedIPCs } from "./feed/ipc";
 
 
 // Set both paths before ready, so development also isolates Chromium state.
 const dataPath = app.isPackaged
     ? app.getPath("userData")
     : developmentDataPath(app.getAppPath(), process.env["LABLOOM_PROFILE"]);
-const storage = new AppStorage(dataPath);
 app.setPath("userData", dataPath);
 const sessionPath = join(dataPath, "chromium");
 mkdirSync(sessionPath, { recursive: true });
 app.setPath("sessionData", sessionPath);
+const logs = new LogDirectory(join(dataPath, "logs"));
+const applicationLog = logs.create("application");
+const restoreConsole = captureConsole(applicationLog);
+applicationLog?.record("Environment", { version: app.getVersion(), platform: process.platform, arch: process.arch, versions: process.versions, dataPath });
+process.on("uncaughtExceptionMonitor", error => applicationLog?.record("Uncaught exception", error));
+process.once("exit", code => {
+    restoreConsole();
+    applicationLog?.close(`exit ${code}`);
+});
+const storage = new AppStorage(dataPath);
 const startup = new Startup(storage);
-registerFeed(startup);
-let choosingWorkspace = false;
 
-function startupWindow(event: IpcMainInvokeEvent): BrowserWindow {
-    const window = BrowserWindow.fromWebContents(event.sender);
-    if (!window || event.senderFrame !== event.sender.mainFrame) throw new Error("无效的启动请求。");
-    return window;
+function openExternal(url: string): void {
+    // Pages may only hand web links to the system browser, never file: or application protocols.
+    if (/^https?:\/\//i.test(url)) shell.openExternal(url).catch(console.error);
 }
-
-ipcMain.handle("startup:get-state", event => {
-    startupWindow(event);
-    return startup.state;
-});
-
-ipcMain.handle("startup:retry", event => {
-    startupWindow(event);
-    return choosingWorkspace ? startup.state : startup.restore();
-});
-
-ipcMain.handle("startup:choose-workspace", async (event, action: unknown) => {
-    const window = startupWindow(event);
-    if (action !== "create" && action !== "open") throw new Error("无效的工作区操作。");
-    if (choosingWorkspace || startup.state.status === "ready" || !startup.state.canChoose) return startup.state;
-    choosingWorkspace = true;
-    try {
-        const result = await dialog.showOpenDialog(window, {
-            title: action === "create" ? "选择空文件夹，创建工作区" : "选择已有工作区",
-            buttonLabel: action === "create" ? "在此创建" : "打开工作区",
-            defaultPath: startup.state.lastWorkspace?.path,
-            properties: ["openDirectory", "createDirectory"]
-        });
-        if (result.canceled || !result.filePaths[0] || window.isDestroyed()) return startup.state;
-        return startup.choose(result.filePaths[0], action);
-    }
-    finally {
-        choosingWorkspace = false;
-    }
-});
 
 
 function createWindow(): void {
@@ -65,7 +44,6 @@ function createWindow(): void {
         minContentHeight = 37 + 8 * 48;
 
     const mainWindow = new BrowserWindow({
-        titleBarStyle: "hidden",
         ...(process.platform !== "darwin" ? { titleBarOverlay: {
             color: "#ddd",
             symbolColor: "#000000",
@@ -77,12 +55,24 @@ function createWindow(): void {
         minHeight: minContentHeight,
         show: false,
         autoHideMenuBar: true,
+        titleBarStyle: "hidden",
         icon,
         webPreferences: {
-            preload: join(__dirname, "../preload/index.mjs"),
-            sandbox: false
+            preload: join(__dirname, "../preload/index.cjs"),
+            contextIsolation: true,
+            nodeIntegration: false,
+            sandbox: true
         }
     });
+    const contents = mainWindow.webContents;
+
+    contents.on("console-message", details => {
+        applicationLog?.record(`renderer ${details.level} ${details.sourceId}:${details.lineNumber}`, details.message);
+    });
+    contents.on("render-process-gone", (_event, details) => applicationLog?.record("Renderer exited", details));
+    registerStartupIPCs(mainWindow, startup);
+    registerFeedIPCs(contents, startup);
+    on(contents, appChannels.openDevTools, () => contents.openDevTools({ mode: "detach" }));
 
     mainWindow.once("ready-to-show", () => {
         const [, windowHeight] = mainWindow.getSize();
@@ -91,20 +81,21 @@ function createWindow(): void {
         mainWindow.show();
     });
 
-    mainWindow.webContents.setWindowOpenHandler((details) => {
-        shell.openExternal(details.url);
+    contents.setWindowOpenHandler(({ url }) => {
+        openExternal(url);
         return { action: "deny" };
     });
-
-    mainWindow.webContents.ipc.on("window:open-devtools", event => {
-        if (event.senderFrame !== mainWindow.webContents.mainFrame) return;
-        mainWindow.webContents.openDevTools({ mode: "detach" });
+    contents.on("will-navigate", (event, url) => {
+        if (url !== contents.getURL()) {
+            event.preventDefault();
+            openExternal(url);
+        }
     });
 
-    mainWindow.webContents.on("before-input-event", (event, input) => {
+    contents.on("before-input-event", (event, input) => {
         const command = input.control || input.meta;
         // Disable native reload/close shortcuts while keeping page key events.
-        mainWindow.webContents.setIgnoreMenuShortcuts(
+        contents.setIgnoreMenuShortcuts(
             command && (input.code === "KeyR" || input.code === "KeyW")
         );
 
@@ -117,30 +108,30 @@ function createWindow(): void {
         if (input.code === "F12") {
             event.preventDefault();
             if (!input.isAutoRepeat) {
-                if (is.dev && !mainWindow.webContents.isDevToolsOpened()) {
-                    mainWindow.webContents.openDevTools({ mode: "undocked" });
+                if (!app.isPackaged && !contents.isDevToolsOpened()) {
+                    contents.openDevTools({ mode: "undocked" });
                 }
-                else mainWindow.webContents.toggleDevTools();
+                else contents.toggleDevTools();
             }
             return;
         }
 
         if (
             (command && (input.code === "Minus" || (input.code === "Equal" && input.shift)))
-         || (!is.dev && input.code === "KeyI" && ((input.control && input.shift) || (input.meta && input.alt)))
+         || (app.isPackaged && input.code === "KeyI" && ((input.control && input.shift) || (input.meta && input.alt)))
         ) {
             event.preventDefault();
         }
     });
 
     // HMR support, do not remove
-    if (is.dev && process.env["ELECTRON_RENDERER_URL"]) mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]);
+    if (!app.isPackaged && process.env["ELECTRON_RENDERER_URL"]) mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]);
     else mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
 }
 
 
 app.whenReady().then(() => {
-    electronApp.setAppUserModelId("dev.labloom.app");
+    app.setAppUserModelId("dev.labloom.app");
     startup.restore();
     createWindow();
 });

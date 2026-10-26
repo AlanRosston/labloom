@@ -28,8 +28,6 @@
         "extends": "./configs/electron-builder.yml"
     },
     "dependencies": {
-        "@electron-toolkit/preload": "^3.0.2",
-        "@electron-toolkit/utils": "^4.0.0",
         "@tiptap/core": "^3.31.3",
         "@tiptap/extension-document": "^3.31.3",
         "@tiptap/extension-dropcursor": "^3.31.3",

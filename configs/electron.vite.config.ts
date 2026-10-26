@@ -13,10 +13,19 @@ export default defineConfig({
         }
     },
     preload: {
+        oxc: {
+            // Erase inline type imports so the sandbox does not try to require their modules.
+            typescript: { onlyRemoveTypeImports: false }
+        },
         build: {
             outDir: "dist/preload",
             rollupOptions: {
-                input: resolve("preload/index.ts")
+                input: resolve("preload/index.ts"),
+                output: {
+                    // Sandboxed preloads cannot load ES modules.
+                    format: "cjs",
+                    entryFileNames: "index.cjs"
+                }
             }
         }
     },

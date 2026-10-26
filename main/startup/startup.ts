@@ -1,18 +1,18 @@
-import type { StartupState, WorkspaceAction } from "../shared/types/startup";
-import { AppStorage } from "./storage/app";
-import { createWorkspace, openWorkspace, type OpenWorkspace } from "./storage/workspace";
+import type { StartupState, WorkspaceAction } from "../../shared/types/startup";
+import { AppStorage } from "../storage/app";
+import { createWorkspace, openWorkspace, type OpenWorkspace } from "../storage/workspace";
 
 function errorMessage(error: unknown): string {
     const code = (error as NodeJS.ErrnoException)?.code;
     if (code === "ENOENT" || code === "ENOTDIR" || code === "SQLITE_CANTOPEN") {
-        return "工作区或所需文件不存在、无法访问。请检查文件夹位置后重试，或打开其他工作区。";
+        return "The workspace or a required file is missing or inaccessible. Check its location and try again, or open another workspace.";
     }
     if (code === "EACCES" || code === "EPERM" || code === "SQLITE_READONLY") {
-        return "没有读写这个位置的权限，请检查文件夹权限后重试。";
+        return "You do not have permission to read or write to this location. Check its permissions and try again.";
     }
-    if (code === "SQLITE_NOTADB" || code === "SQLITE_CORRUPT") return "工作区数据库损坏或格式无效，无法打开。";
-    if (code === "ENOSPC" || code === "SQLITE_FULL") return "磁盘空间不足，请释放空间后重试。";
-    return error instanceof Error ? error.message : "打开工作区失败，请重试。";
+    if (code === "SQLITE_NOTADB" || code === "SQLITE_CORRUPT") return "The workspace database is corrupted or invalid and cannot be opened.";
+    if (code === "ENOSPC" || code === "SQLITE_FULL") return "Insufficient disk space. Free up some space and try again.";
+    return error instanceof Error ? error.message : "Unable to open the workspace. Try again.";
 }
 
 export class Startup {
@@ -53,7 +53,7 @@ export class Startup {
         }
         catch (error) {
             workspace?.database.close();
-            const prefix = workspace && action === "create" ? "工作区已创建，但应用配置保存失败。请用“打开已有工作区”重试。\n" : "";
+            const prefix = workspace && action === "create" ? "Workspace created, but the configuration could not be saved. Open the existing workspace to try again.\n" : "";
             this.state = { ...previous, error: prefix + errorMessage(error) };
         }
         return this.state;

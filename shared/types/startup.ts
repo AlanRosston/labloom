@@ -1,5 +1,3 @@
-import type { FeedAPI } from "./feed";
-
 export type Workspace = {
     id: string;
     name: string;
@@ -17,12 +15,3 @@ export type StartupState =
         error?: string;
         notice?: string;
     };
-
-export interface AppAPI {
-    feed: FeedAPI;
-    startup: {
-        getState: () => Promise<StartupState>;
-        chooseWorkspace: (action: WorkspaceAction) => Promise<StartupState>;
-        retry: () => Promise<StartupState>;
-    };
-}

@@ -3,7 +3,7 @@
         <Menubar.Trigger>Menu</Menubar.Trigger>
         <Menubar.Portal>
             <Menubar.Content sideOffset={8}>
-                <Menubar.Item onSelect={() => window.electron.ipcRenderer.send("window:open-devtools")}>
+                <Menubar.Item onSelect={() => window.api.openDevTools()}>
                     打开开发者工具
                     <kbd>F12</kbd>
                 </Menubar.Item>

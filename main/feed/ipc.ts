@@ -1,22 +1,25 @@
-import { BrowserWindow, ipcMain, net, shell, type IpcMainInvokeEvent } from "electron";
-import type { Startup } from "../startup";
+import { net, shell, type WebContents } from "electron";
+import type { FeedQuery, FeedSourceInput } from "../../shared/types/feed";
+import { feedChannels } from "../../shared/ipc";
+import { handle } from "../ipc";
+import type { Startup } from "../startup/startup";
 import { fetchFeed } from "./parser";
 import { FeedService } from "./service";
 
-export function registerFeed(startup: Startup): void {
-    let service: FeedService | undefined;
-    function feed(event: IpcMainInvokeEvent): FeedService {
-        if (!BrowserWindow.fromWebContents(event.sender) || event.senderFrame !== event.sender.mainFrame) {
-            throw new Error("无效的订阅请求。");
-        }
+// Shared by every window, so refreshes of one source never run twice.
+let service: FeedService | undefined;
+
+export function registerFeedIPCs(contents: WebContents, startup: Startup): void {
+    function feed(): FeedService {
         service ??= new FeedService(startup.getDatabase(), url => fetchFeed(url, net.fetch));
         return service;
     }
 
-    ipcMain.handle("feed:get-state", (event, query) => feed(event).getState(query));
-    ipcMain.handle("feed:save-source", (event, source) => feed(event).saveSource(source));
-    ipcMain.handle("feed:remove-source", (event, id) => feed(event).removeSource(id));
-    ipcMain.handle("feed:refresh", (event, sourceId) => feed(event).refresh(sourceId));
-    ipcMain.handle("feed:set-read", (event, id, isRead) => feed(event).setRead(id, isRead));
-    ipcMain.handle("feed:open-item", (event, id) => shell.openExternal(feed(event).itemURL(id)));
+    // FeedService validates the shape of each argument itself.
+    handle(contents, feedChannels.getState, query => feed().getState(query as FeedQuery));
+    handle(contents, feedChannels.saveSource, source => feed().saveSource(source as FeedSourceInput));
+    handle(contents, feedChannels.removeSource, id => feed().removeSource(id as string));
+    handle(contents, feedChannels.refresh, sourceId => feed().refresh(sourceId as string | undefined));
+    handle(contents, feedChannels.setRead, (id, isRead) => feed().setRead(id as string, isRead as boolean));
+    handle(contents, feedChannels.openItem, id => shell.openExternal(feed().itemURL(id as string)));
 }

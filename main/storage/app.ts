@@ -25,11 +25,13 @@ function isConfig(value: unknown): value is AppConfig {
 }
 
 export function developmentDataPath(projectPath: string, profile = "default"): string {
-    // Prefix the directory to avoid Windows reserved device names such as CON.
     if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/.test(profile)) {
-        throw new Error("LABLOOM_PROFILE 只能包含 1–64 个字母、数字、下划线或连字符，并以字母或数字开头。");
+        throw new Error("LABLOOM_PROFILE must contain 1-64 letters, digits, underscores, or hyphens, and start with a letter or digit.");
     }
-    return join(projectPath, ".local", "profiles", `profile-${profile}`, "user-data");
+    if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(profile)) {
+        throw new Error("LABLOOM_PROFILE must not be a Windows reserved device name.");
+    }
+    return join(projectPath, ".local", "profiles", profile);
 }
 
 export class AppStorage {
@@ -63,20 +65,20 @@ export class AppStorage {
             parsed = null;
         }
         if (isRecord(parsed) && typeof parsed.version === "number" && parsed.version > 1) {
-            throw new Error("应用配置来自更新版本的知织，请更新应用后重试。");
+            throw new Error("This configuration was created by a newer version of Labloom. Update Labloom and try again.");
         }
         if (!isConfig(parsed)) {
             const backup = join(this.root, `config.invalid-${randomUUID()}.json`);
             renameSync(this.configPath, backup);
             this.config = { version: 1, lastWorkspace: null };
-            return { lastWorkspace: null, notice: `应用配置无法读取，已保留至 ${backup}。请重新选择工作区。` };
+            return { lastWorkspace: null, notice: `Unable to read the configuration. A backup was saved to ${backup}. Select your workspace again.` };
         }
         this.config = parsed;
         return { lastWorkspace: parsed.lastWorkspace };
     }
 
     remember(workspace: Workspace): void {
-        if (!this.config) throw new Error("应用配置尚未成功读取，请重试。");
+        if (!this.config) throw new Error("The configuration has not been loaded successfully. Try again.");
         const config: AppConfig = { ...this.config, lastWorkspace: workspace };
         const temporary = join(this.root, `config-${randomUUID()}.tmp`);
         try {
