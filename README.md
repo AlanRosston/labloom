@@ -8,6 +8,8 @@ English | [中文](README.chs.md)
 
 An all-in-one AI research workspace for the entire research lifecycle.
 
+This repository is a fork of Labloom for the Software Engineering lab course. Work in this fork is generally limited to updating lab reports, with no additional feature development.
+
 ## Features
 
 1. **Subscriptions**: Follow research feeds and keep up with new papers.

@@ -6,3 +6,6 @@ dist
 .local
 .VSCodeCounter
 ~$*
+
+# SE Experiment 重制版忽略文件
+docs/SE_Experiment/*.ppt
