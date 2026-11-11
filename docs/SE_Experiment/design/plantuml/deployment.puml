@@ -1,4 +1,4 @@
-@startuml
+@startuml 运行部署图
 !include _style.iuml
 node "用户桌面计算机" as Desktop {
   node "Electron 渲染进程" as Renderer {

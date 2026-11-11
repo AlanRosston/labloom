@@ -1,0 +1,35 @@
+@startuml UC05 界面交互时序图
+!include _style.iuml
+actor 用户
+boundary NoteUI as "NoteUI\n（笔记界面）"
+participant AppAPI
+participant IPCHandler
+control NoteController
+
+用户 -> NoteUI: 修改标题或正文、插入文献链接
+NoteUI -> NoteUI: 更新草稿与 clientRevision，setSaveStatus("EDITING")
+NoteUI -> NoteUI: 前端校验（标题非空、块类型有效）
+alt 校验失败
+  NoteUI -> 用户: 在输入位置显示红色错误提示，保留草稿
+else 校验通过
+  NoteUI -> NoteUI: 停止输入满 1 秒，setSaveStatus("SAVING")，显示"保存中"
+  NoteUI -> AppAPI: notes.save(sessionId, input)
+  AppAPI -> IPCHandler: IPC 请求
+  IPCHandler -> IPCHandler: 校验发送窗口、参数与 sessionId
+  IPCHandler -> NoteController: saveNote(input)
+  NoteController --> IPCHandler: return Result
+  IPCHandler --> AppAPI: IPC 响应
+  AppAPI --> NoteUI: return Result
+  alt 保存成功且 clientRevision 为最新批次
+    NoteUI -> NoteUI: 更新 baseVersion，setSaveStatus("SAVED")
+    NoteUI -> 用户: 状态栏显示绿色"已保存"
+  else 保存成功且保存期间有新输入
+    NoteUI -> NoteUI: 更新 baseVersion，setSaveStatus("EDITING")，等待下一次静默
+    NoteUI -> 用户: 状态栏显示"编辑中"
+  else 保存失败
+    NoteUI -> NoteUI: setSaveStatus("SAVE_FAILED")，保留草稿
+    NoteUI -> 用户: 显示红色错误原因与"重试"按钮
+    用户 -> NoteUI: retrySave()
+  end
+end
+@enduml

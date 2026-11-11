@@ -1,0 +1,127 @@
+@startuml UC02、UC03 构件级类图
+!include _style.iuml
+left to right direction
+
+interface ISourceUI <<interface>> {
+  + querySources(): List<FeedSource>
+  + addSource(name: String, url: String): Result<FeedSource>
+  + editSource(sourceId: UUID, name: String, url: String): Result<FeedSource>
+  + removeSource(sourceId: UUID): Result<Void>
+}
+interface ISourceController <<interface>> {
+  + listSources(): Result<List<FeedSource>>
+  + addSource(input: SourceInput): Result<FeedSource>
+  + updateSource(sourceId: UUID, input: SourceInput): Result<FeedSource>
+  + removeSource(sourceId: UUID): Result<Void>
+}
+interface IFeedUI <<interface>> {
+  + refreshFeed(sourceId: UUID): Result<RefreshSummary>
+  + queryItems(filter: FeedFilter, page: Integer): PageResult<FeedItem>
+  + openItem(itemId: UUID): Result<FeedItem>
+  + openOriginal(itemId: UUID): Result<Void>
+}
+interface IRefreshController <<interface>> {
+  + refresh(sourceId: UUID): Result<RefreshSummary>
+  + listItems(filter: FeedFilter, page: Integer): Result<PageResult<FeedItem>>
+  + readItem(itemId: UUID): Result<FeedItem>
+  + openOriginal(itemId: UUID): Result<Void>
+}
+interface IFeedGateway <<interface>> {
+  + fetchAndParse(url: String, timeoutMs: Integer): Result<ParsedFeed>
+}
+interface IUnitOfWork <<interface>> {
+  + open(dbPath: String): void
+  + begin(): Tx
+  + commit(tx: Tx): void
+  + rollback(tx: Tx): void
+  + close(): void
+}
+interface IFeedSourceDAO <<interface>> {
+  + insert(source: FeedSource, tx: Tx): void
+  + update(source: FeedSource, tx: Tx): void
+  + updateRefreshTime(sourceId: UUID, time: Timestamp, tx: Tx): void
+  + delete(sourceId: UUID, tx: Tx): void
+  + selectAll(): List<FeedSource>
+  + selectById(sourceId: UUID): FeedSource
+  + selectByUrl(url: String): FeedSource
+}
+interface IExternalBrowser <<interface>> {
+  + open(url: String): Result<Void>
+}
+interface IFeedItemDAO <<interface>> {
+  + insert(item: FeedItem, tx: Tx): void
+  + updateRead(itemId: UUID, tx: Tx): void
+  + selectById(itemId: UUID): FeedItem
+  + selectByUrl(url: String): FeedItem
+  + selectPage(filter: FeedFilter, page: Integer): PageResult<FeedItem>
+  + selectIndexInput(): List<FeedItem>
+}
+interface ISearchDAO <<interface>> {
+  + insertTask(kind: String, targetId: UUID, tx: Tx): void
+  + deleteTask(task: IndexTask, tx: Tx): void
+  + updateDocument(document: SearchDocument, terms: List<String>, tx: Tx): void
+  + updateStatus(status: String, errorCode: String, tx: Tx): void
+  + selectPendingTasks(limit: Integer): List<IndexTask>
+  + selectCandidates(terms: List<String>, scope: String): List<SearchDocument>
+  + selectStatus(): IndexStatus
+}
+class SourceUI
+class FeedUI
+class SourceController
+class RefreshController
+class FeedSourceDAO
+class FeedItemDAO
+class FeedSource {
+  - id: UUID
+  - name: String
+  - url: String
+  - lastRefreshedAt: Timestamp
+  - status: String
+  + rename(name: String): void
+  + changeUrl(url: String): void
+  + recordRefresh(time: Timestamp): void
+  + getStatus(): String
+  + setStatus(status: String): void
+}
+class FeedItem {
+  - id: UUID
+  - sourceId: UUID
+  - sourceName: String
+  - title: String
+  - url: String
+  - summary: String
+  - publishedAt: Timestamp
+  - fetchedAt: Timestamp
+  - isRead: Boolean
+  + markRead(): void
+  + isRead(): Boolean
+}
+
+' 实现关系
+SourceUI ..|> ISourceUI
+FeedUI ..|> IFeedUI
+SourceController ..|> ISourceController
+RefreshController ..|> IRefreshController
+FeedSourceDAO ..|> IFeedSourceDAO
+FeedItemDAO ..|> IFeedItemDAO
+
+' 依赖关系
+SourceUI ..> ISourceController
+FeedUI ..> IRefreshController
+SourceController ..> IFeedGateway
+SourceController ..> IUnitOfWork
+SourceController ..> IFeedSourceDAO
+RefreshController ..> IFeedGateway
+RefreshController ..> IExternalBrowser
+RefreshController ..> IUnitOfWork
+RefreshController ..> IFeedSourceDAO
+RefreshController ..> IFeedItemDAO
+RefreshController ..> ISearchDAO
+
+' DAO 与实体（使用关系）
+FeedSourceDAO ..> FeedSource : 使用
+FeedItemDAO ..> FeedItem : 使用
+
+' 实体关系
+FeedSource "0..1" -- "0..*" FeedItem : 来源
+@enduml

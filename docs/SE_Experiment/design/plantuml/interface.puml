@@ -1,4 +1,4 @@
-@startsalt
+@startsalt 主窗口界面结构
 !include _style.iuml
 !function $cn($text)
 !return "<font:Noto Sans CJK SC>" + $text + "</font>"

@@ -1,0 +1,51 @@
+@startuml UC01 创建工作区顺序图
+!include _style.iuml
+actor 用户
+boundary WorkspaceUI
+control WorkspaceController
+participant IFileDialog
+participant IFileStore
+participant IWorkspaceLock
+participant IUnitOfWork
+participant IMigrationRunner
+participant IWorkspaceDAO
+participant IIndexService
+entity Workspace
+
+用户 -> WorkspaceUI: createWorkspace(name)
+WorkspaceUI -> WorkspaceController: createWorkspace(name)
+WorkspaceController -> IFileDialog: chooseDirectory("create")
+IFileDialog --> WorkspaceController: return path
+alt 用户取消选择
+  WorkspaceController --> WorkspaceUI: return Result(success=false, code=CANCELLED)
+else 已选定目录
+  WorkspaceController -> IFileStore: checkDirectory(path, "create")
+  IFileStore --> WorkspaceController: return rootPath
+  WorkspaceController -> IWorkspaceLock: acquire(rootPath)
+  IWorkspaceLock --> WorkspaceController: return lockHandle
+  alt 目录无效或已被其他实例打开
+    WorkspaceController --> WorkspaceUI: return Result(success=false, code=INVALID_ARGUMENT／WORKSPACE_BUSY)
+  else 目录有效且取得锁
+    WorkspaceController -> IFileStore: initLayout(rootPath)
+    WorkspaceController -> IUnitOfWork: open(dbPath)
+    WorkspaceController -> IMigrationRunner: migrate(0)
+    IMigrationRunner --> WorkspaceController: return schemaVersion
+    WorkspaceController -> Workspace: new Workspace(name)
+    WorkspaceController -> IUnitOfWork: begin()
+    IUnitOfWork --> WorkspaceController: return tx
+    WorkspaceController -> IWorkspaceDAO: insertMeta(workspace, tx)
+    WorkspaceController -> IUnitOfWork: commit(tx)
+    alt 初始化成功
+      WorkspaceController -> IIndexService: start()
+      WorkspaceController --> WorkspaceUI: return Result(success=true, data=session)
+    else 初始化失败
+      WorkspaceController -> IUnitOfWork: rollback(tx)
+      WorkspaceController -> IUnitOfWork: close()
+      WorkspaceController -> IFileStore: removeLayout(rootPath)
+      WorkspaceController -> IWorkspaceLock: release(lockHandle)
+      WorkspaceController --> WorkspaceUI: return Result(success=false, code=STORAGE_FAILED)
+    end
+  end
+end
+WorkspaceUI --> 用户: show workspaceResult
+@enduml

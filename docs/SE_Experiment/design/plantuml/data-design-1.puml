@@ -1,0 +1,80 @@
+@startuml 数据设计类图（工作区与订阅）
+!include _style.iuml
+left to right direction
+
+' ===== 实体类（PO） =====
+class Workspace {
+  - id: UUID
+  - name: String
+  - rootPath: String
+  - schemaVersion: Integer
+  - createdAt: Timestamp
+  + rename(name: String): void
+  + getName(): String
+}
+class FeedSource {
+  - id: UUID
+  - name: String
+  - url: String
+  - lastRefreshedAt: Timestamp
+  - status: String
+  + rename(name: String): void
+  + changeUrl(url: String): void
+  + recordRefresh(time: Timestamp): void
+  + getStatus(): String
+  + setStatus(status: String): void
+}
+class FeedItem {
+  - id: UUID
+  - sourceId: UUID
+  - sourceName: String
+  - title: String
+  - url: String
+  - summary: String
+  - publishedAt: Timestamp
+  - fetchedAt: Timestamp
+  - isRead: Boolean
+  + markRead(): void
+  + isRead(): Boolean
+}
+
+' ===== DAO 接口 =====
+interface IWorkspaceDAO <<interface>> {
+  + insertMeta(workspace: Workspace, tx: Tx): void
+  + selectMeta(): Workspace
+  + selectSchemaVersion(): Integer
+}
+interface IFeedSourceDAO <<interface>> {
+  + insert(source: FeedSource, tx: Tx): void
+  + update(source: FeedSource, tx: Tx): void
+  + updateRefreshTime(sourceId: UUID, time: Timestamp, tx: Tx): void
+  + delete(sourceId: UUID, tx: Tx): void
+  + selectAll(): List<FeedSource>
+  + selectById(sourceId: UUID): FeedSource
+  + selectByUrl(url: String): FeedSource
+}
+interface IFeedItemDAO <<interface>> {
+  + insert(item: FeedItem, tx: Tx): void
+  + updateRead(itemId: UUID, tx: Tx): void
+  + selectById(itemId: UUID): FeedItem
+  + selectByUrl(url: String): FeedItem
+  + selectPage(filter: FeedFilter, page: Integer): PageResult<FeedItem>
+  + selectIndexInput(): List<FeedItem>
+}
+
+' ===== DAO 实现 =====
+class WorkspaceDAO
+class FeedSourceDAO
+class FeedItemDAO
+WorkspaceDAO ..|> IWorkspaceDAO
+FeedSourceDAO ..|> IFeedSourceDAO
+FeedItemDAO ..|> IFeedItemDAO
+WorkspaceDAO ..> Workspace : 使用
+FeedSourceDAO ..> FeedSource : 使用
+FeedItemDAO ..> FeedItem : 使用
+
+' 实体关系
+Workspace "1" *-- "0..*" FeedSource
+Workspace "1" *-- "0..*" FeedItem
+FeedSource "0..1" -- "0..*" FeedItem : 来源
+@enduml

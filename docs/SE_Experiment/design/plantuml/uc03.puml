@@ -1,43 +1,80 @@
-@startuml
+@startuml UC03 刷新与阅读订阅顺序图
 !include _style.iuml
-skinparam maxMessageSize 240
-hide footbox
-skinparam sequenceMessageAlign center
-actor 用户 as U
-boundary FeedUI as UI
-control "Refresh\nController" as C
-participant FeedGateway as G
-database "DAO／UnitOfWork\nSQLite" as DB
-U -> UI : 刷新指定／全部来源
-UI -> C : refresh(sourceId?)
-C -> DB : 读取来源快照
-loop 逐源处理
-  C -> C : 状态设为刷新中
-  C -> G : fetchAndParse(url, 30000)
-  G --> C : ParsedFeed 或错误
-  alt 抓取解析成功
-    C -> C : 规范化链接；统计无效链接 skipped
-    C -> DB : begin；核对来源；按 url 去重插入
-    C -> DB : 索引任务与刷新时间；commit
-    alt 事务提交成功
-      C -> C : 统计新增／重复；状态恢复正常
-    else 写入失败
-      C -> DB : rollback
-      C -> C : 记录错误；状态设为抓取失败
+actor 用户
+boundary FeedUI
+control RefreshController
+participant IFeedGateway
+participant IUnitOfWork
+participant IFeedSourceDAO
+participant IFeedItemDAO
+participant ISearchDAO
+participant IExternalBrowser
+entity FeedSource
+entity FeedItem
+
+== 刷新订阅 ==
+用户 -> FeedUI: refreshFeed(sourceId)
+FeedUI -> RefreshController: refresh(sourceId)
+RefreshController -> IFeedSourceDAO: selectAll() 或 selectById(sourceId)
+IFeedSourceDAO --> RefreshController: return sourceList
+loop 每个订阅源
+  RefreshController -> FeedSource: setStatus("REFRESHING")
+  RefreshController -> IFeedGateway: fetchAndParse(url, 30000)
+  IFeedGateway --> RefreshController: return parsedFeed
+  alt 获取并解析成功
+    RefreshController -> RefreshController: 规范化原文链接，无可用链接计入 skipped
+    RefreshController -> IUnitOfWork: begin()
+    IUnitOfWork --> RefreshController: return tx
+    RefreshController -> IFeedSourceDAO: selectById(sourceId)
+    loop 每个候选条目
+      RefreshController -> IFeedItemDAO: selectByUrl(url)
+      IFeedItemDAO --> RefreshController: return existingItem
+      alt 条目不存在
+        RefreshController -> IFeedItemDAO: insert(item, tx)
+        RefreshController -> ISearchDAO: insertTask("feed", itemId, tx)
+      else 条目已存在
+        RefreshController -> RefreshController: 计入 duplicate
+      end
     end
-  else 抓取解析失败
-    C -> C : 记录错误；状态设为抓取失败
+    RefreshController -> FeedSource: recordRefresh(now)
+    RefreshController -> IFeedSourceDAO: updateRefreshTime(sourceId, now, tx)
+    RefreshController -> IUnitOfWork: commit(tx)
+    alt 提交成功
+      RefreshController -> FeedSource: setStatus("NORMAL")
+    else 写入失败
+      RefreshController -> IUnitOfWork: rollback(tx)
+      RefreshController -> FeedSource: setStatus("FETCH_FAILED")
+    end
+  else 获取或解析失败
+    RefreshController -> FeedSource: setStatus("FETCH_FAILED")
   end
 end
-C --> UI : RefreshSummary
-== 阅读已有条目 ==
-U -> UI : 选择条目
-UI -> C : readItem(id)
-C -> DB : markRead → commit
-DB --> C : 写入结果
-C --> UI : 摘要与已读状态／写入错误
-opt 用户打开原文
-  UI -> C : openOriginal(id)
-  C -> C : 校验 URL；调用 ExternalBrowser
+RefreshController --> FeedUI: return Result(success=true, data=summary)
+FeedUI --> 用户: show refreshSummary
+
+== 阅读条目 ==
+用户 -> FeedUI: openItem(itemId)
+FeedUI -> RefreshController: readItem(itemId)
+RefreshController -> IFeedItemDAO: selectById(itemId)
+IFeedItemDAO --> RefreshController: return item
+opt 条目未读
+  RefreshController -> FeedItem: markRead()
+  RefreshController -> IUnitOfWork: begin()
+  RefreshController -> IFeedItemDAO: updateRead(itemId, tx)
+  RefreshController -> IUnitOfWork: commit(tx)
+end
+RefreshController --> FeedUI: return Result(success=true, data=item)
+FeedUI --> 用户: show itemSummary
+
+== 打开原文 ==
+用户 -> FeedUI: openOriginal(itemId)
+FeedUI -> RefreshController: openOriginal(itemId)
+RefreshController -> IFeedItemDAO: selectById(itemId)
+IFeedItemDAO --> RefreshController: return item
+alt 链接为 http／https
+  RefreshController -> IExternalBrowser: open(url)
+  RefreshController --> FeedUI: return Result(success=true)
+else 其他协议
+  RefreshController --> FeedUI: return Result(success=false, code=PROTOCOL_REJECTED)
 end
 @enduml

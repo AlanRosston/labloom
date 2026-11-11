@@ -1,0 +1,41 @@
+@startuml 数据设计类图（检索索引）
+!include _style.iuml
+
+' ===== 数据传输对象 =====
+class SearchDocument <<DTO>> {
+  - kind: String
+  - targetId: UUID
+  - title: String
+  - searchText: String
+  - updatedAt: Timestamp
+}
+class IndexTask <<DTO>> {
+  - kind: String
+  - targetId: UUID
+  - revision: Integer
+}
+class IndexStatus <<DTO>> {
+  - status: String
+  - processed: Integer
+  - total: Integer
+  - generation: Integer
+}
+
+' ===== DAO 接口 =====
+interface ISearchDAO <<interface>> {
+  + insertTask(kind: String, targetId: UUID, tx: Tx): void
+  + deleteTask(task: IndexTask, tx: Tx): void
+  + updateDocument(document: SearchDocument, terms: List<String>, tx: Tx): void
+  + updateStatus(status: String, errorCode: String, tx: Tx): void
+  + selectPendingTasks(limit: Integer): List<IndexTask>
+  + selectCandidates(terms: List<String>, scope: String): List<SearchDocument>
+  + selectStatus(): IndexStatus
+}
+
+' ===== DAO 实现 =====
+class SearchDAO
+SearchDAO ..|> ISearchDAO
+SearchDAO ..> SearchDocument : 使用
+SearchDAO ..> IndexTask : 使用
+SearchDAO ..> IndexStatus : 使用
+@enduml

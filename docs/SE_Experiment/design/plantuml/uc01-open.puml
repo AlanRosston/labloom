@@ -1,0 +1,61 @@
+@startuml UC01 打开工作区顺序图
+!include _style.iuml
+actor 用户
+boundary WorkspaceUI
+control WorkspaceController
+participant IFileDialog
+participant IFileStore
+participant IWorkspaceLock
+participant IUnitOfWork
+participant IMigrationRunner
+participant IWorkspaceDAO
+participant IAttachmentDAO
+participant IIndexService
+
+用户 -> WorkspaceUI: openWorkspace()
+WorkspaceUI -> WorkspaceController: openWorkspace()
+WorkspaceController -> IFileDialog: chooseDirectory("open")
+IFileDialog --> WorkspaceController: return path
+alt 用户取消选择
+  WorkspaceController --> WorkspaceUI: return Result(success=false, code=CANCELLED)
+else 已选定目录
+  WorkspaceController -> IFileStore: checkDirectory(path, "open")
+  IFileStore --> WorkspaceController: return rootPath
+  WorkspaceController -> IWorkspaceLock: acquire(rootPath)
+  IWorkspaceLock --> WorkspaceController: return lockHandle
+  alt 工作区结构无效或已被其他实例打开
+    WorkspaceController --> WorkspaceUI: return Result(success=false, code=WORKSPACE_INVALID／WORKSPACE_BUSY)
+  else 取得锁
+    WorkspaceController -> IUnitOfWork: open(dbPath)
+    WorkspaceController -> IWorkspaceDAO: selectSchemaVersion()
+    IWorkspaceDAO --> WorkspaceController: return schemaVersion
+    opt schemaVersion 低于当前版本
+      WorkspaceController -> IMigrationRunner: migrate(schemaVersion)
+      IMigrationRunner -> IFileStore: backupDatabase(dbPath)
+      IMigrationRunner --> WorkspaceController: return Result(newVersion)
+    end
+    WorkspaceController -> IWorkspaceDAO: selectMeta()
+    IWorkspaceDAO --> WorkspaceController: return workspace
+    WorkspaceController -> IFileStore: listPendingImports()
+    IFileStore --> WorkspaceController: return ticketList
+    loop 每条未完成导入
+      WorkspaceController -> IAttachmentDAO: selectById(attachmentId)
+      IAttachmentDAO --> WorkspaceController: return attachment
+      alt 附件记录存在
+        WorkspaceController -> IFileStore: finishImport(ticket)
+      else 附件记录缺失
+        WorkspaceController -> IFileStore: rollbackImport(ticket)
+      end
+    end
+    alt 打开成功
+      WorkspaceController -> IIndexService: start()
+      WorkspaceController --> WorkspaceUI: return Result(success=true, data=session)
+    else 迁移或读写失败
+      WorkspaceController -> IUnitOfWork: close()
+      WorkspaceController -> IWorkspaceLock: release(lockHandle)
+      WorkspaceController --> WorkspaceUI: return Result(success=false, code=MIGRATION_FAILED／STORAGE_FAILED)
+    end
+  end
+end
+WorkspaceUI --> 用户: show workspaceResult
+@enduml
