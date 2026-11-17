@@ -1,9 +1,24 @@
 import { defaultAppearance, type Appearance } from "../../../shared/types/appearance";
+import { resolveTimeZone } from "../../../shared/content/time";
+import { failure, setLocale, type ErrorValue } from "../../i18n.svelte";
 
-export const appearance = $state({ ...defaultAppearance, loaded: false, saving: false, error: "" });
+export const appearance = $state<Appearance & { loaded: boolean; saving: boolean; error: ErrorValue }>({ ...defaultAppearance, loaded: false, saving: false, error: "" });
+let savedZone = $state(defaultAppearance.timeZone);
+const zone = $derived(resolveTimeZone(savedZone));
+const dateTime = $derived(new Intl.DateTimeFormat(undefined, {
+    timeZone: zone, year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit"
+}));
+
+export function currentTimeZone(): string {
+    return zone;
+}
+
+export function displayMilliseconds(ms: number): string {
+    return dateTime.format(ms);
+}
 
 function values(): Appearance {
-    return { theme: appearance.theme, readingSize: appearance.readingSize, motion: appearance.motion };
+    return { theme: appearance.theme, readingSize: appearance.readingSize, motion: appearance.motion, timeZone: appearance.timeZone, language: appearance.language };
 }
 
 function apply(): void {
@@ -12,16 +27,18 @@ function apply(): void {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
     document.documentElement.dataset.motion = appearance.motion ? "on" : "off";
     document.documentElement.style.setProperty("--reading-font-size", `${appearance.readingSize}px`);
+    setLocale(appearance.language);
 }
 
 export async function loadAppearance(): Promise<void> {
     appearance.error = "";
     try {
         Object.assign(appearance, await window.api.appearance.get());
+        savedZone = appearance.timeZone;
         appearance.loaded = true;
     }
     catch (error) {
-        appearance.error = `无法读取本机外观设置：${error instanceof Error ? error.message : "请重试。"}`;
+        appearance.error = failure(error);
     }
     apply();
 }
@@ -32,10 +49,10 @@ export async function saveAppearance(): Promise<void> {
     appearance.error = "";
     apply();
     try {
-        await window.api.appearance.save(values());
+        savedZone = (await window.api.appearance.save(values())).timeZone;
     }
-    catch {
-        appearance.error = "本次设置已应用，但未能保存到本机，请重试。";
+    catch (error) {
+        appearance.error = failure(error);
     }
     finally {
         appearance.saving = false;
@@ -45,6 +62,14 @@ export async function saveAppearance(): Promise<void> {
 export function initializeAppearance(): () => void {
     const systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
     systemTheme.addEventListener("change", apply);
+    const off = window.api.appearance.onChanged(value => {
+        Object.assign(appearance, value);
+        savedZone = value.timeZone;
+        apply();
+    });
     void loadAppearance();
-    return () => systemTheme.removeEventListener("change", apply);
+    return () => {
+        systemTheme.removeEventListener("change", apply);
+        off();
+    };
 }

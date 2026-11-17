@@ -14,6 +14,8 @@ export const knowledgeChannels = {
     place: "knowledge:place",
     trash: "knowledge:trash",
     restore: "knowledge:restore",
+    purge: "knowledge:purge",
+    emptyTrash: "knowledge:empty-trash",
     definitions: "knowledge:definitions",
     define: "knowledge:define",
     backlinks: "knowledge:backlinks",
@@ -24,15 +26,19 @@ export const knowledgeChannels = {
     loadTabs: "knowledge:loadTabs",
     saveTabs: "knowledge:saveTabs",
     importPDF: "knowledge:importPDF",
+    importFiles: "knowledge:importFiles",
+    files: "knowledge:files",
+    openFile: "knowledge:openFile",
     resources: "knowledge:resources",
     readFile: "knowledge:readFile",
-    getAnchor: "knowledge:getAnchor",
+    getAnnotation: "knowledge:getAnnotation",
     unlockPDF: "knowledge:unlockPDF",
-    changeHighlight: "knowledge:changeHighlight",
+    changeAnnotation: "knowledge:changeAnnotation",
     position: "knowledge:position",
-    highlight: "knowledge:highlight",
-    removeHighlight: "knowledge:removeHighlight",
+    deleteAnnotation: "knowledge:deleteAnnotation",
     annotate: "knowledge:annotate",
+    timers: "knowledge:timers",
+    setTimer: "knowledge:setTimer",
     notices: "knowledge:notices",
     readNotice: "knowledge:readNotice"
 } as const;
@@ -42,7 +48,8 @@ export const saveBeforeCloseReply = "knowledge:close-reply";
 
 export const appearanceChannels = {
     get: "appearance:get",
-    save: "appearance:save"
+    save: "appearance:save",
+    changed: "appearance:changed"
 } as const;
 
 export const startupChannels = {
@@ -53,9 +60,18 @@ export const startupChannels = {
 
 export const feedChannels = {
     getState: "feed:get-state",
+    getItem: "feed:get-item",
     saveSource: "feed:save-source",
-    removeSource: "feed:remove-source",
+    setSourceStatus: "feed:set-source-status",
     refresh: "feed:refresh",
     setRead: "feed:set-read",
+    markAllRead: "feed:mark-all-read",
+    setPosition: "feed:set-position",
+    setKeywords: "feed:set-keywords",
+    importItem: "feed:import-item",
+    fetchPDF: "feed:fetch-pdf",
     openItem: "feed:open-item"
 } as const;
+
+/** Sent to every window when saved subscriptions or items change. */
+export const feedChanged = "feed:changed";
