@@ -21,37 +21,16 @@
 - AppAPI：preload 脚本向渲染进程公开的 window.labloom 接口对象，方法均为异步调用
 - 工作区：由 workspace.sqlite 数据库、attachments 附件目录和 .imports 导入目录组成的本地资料目录
 - Tx：同一次数据库事务的连接上下文，由 UnitOfWork 创建
-- UUID：实体稳定标识，数据库中以 TEXT 保存
-- Timestamp：UTC 毫秒时间戳，数据库中以 INTEGER 保存
-- note / paper：页面类型，分别表示笔记页和文献页
-- paragraph / heading / list：内容块类型，分别表示段落、标题和列表
-- NORMAL：订阅源正常状态
-- REFRESHING：订阅源刷新中状态
-- FETCH_FAILED：订阅源抓取失败状态
-- EDITING：笔记编辑中状态
-- SAVING：笔记保存中状态
-- SAVED：笔记已保存状态
-- SAVE_FAILED：笔记保存失败状态
-- BUILDING：检索索引构建中状态
-- READY：检索索引就绪状态
-- FAILED：检索索引构建失败状态
+- UUID / Timestamp：实体稳定标识（TEXT 保存）/ UTC 毫秒时间戳（INTEGER 保存）
+- 页面类型：note（笔记页）、paper（文献页）；内容块类型：paragraph（段落）、heading（标题）、list（列表）
+- 订阅源状态：NORMAL（正常）、REFRESHING（刷新中）、FETCH_FAILED（抓取失败）
+- 笔记保存状态：EDITING（编辑中）、SAVING（保存中）、SAVED（已保存）、SAVE_FAILED（保存失败）
+- 检索索引状态：BUILDING（构建中）、READY（就绪）、FAILED（构建失败）
 - `Result<T>`：统一返回结果对象，包含 success、code、msg、data 四个字段；code 为错误代码，取值见 7.3
 - `PageResult<T>`：分页结果对象，包含 items、page、pageSize、hasMore、queryId 五个字段，pageSize 固定为 50
-- WorkspaceSession：工作区会话，包含 sessionId、workspaceId、name、indexStatus
-- SourceInput：订阅源输入，包含 name、url
-- FeedFilter：条目筛选条件，包含 sourceId（可为空）、unreadOnly 和 queryId（可为空，用于固定本次浏览的条目顺序）
-- ParsedFeed：订阅解析结果，包含来源标题和条目列表（title、url、summary、publishedAt）
-- RefreshSummary：刷新汇总，按来源列出 sourceId、success、added、duplicate、skipped、code
-- ImportTicket：导入凭据，包含 importId、attachmentId、tempPath、relativePath、size
-- PDFResource：PDF 读取结果，包含 attachmentId、originalName、bytes
-- NoteSnapshot：笔记快照，包含 pageId、title、blocks、paperIds、version
-- NoteSaveInput：笔记保存输入，包含 pageId、title、blocks、baseVersion、clientRevision
-- SaveReceipt：保存回执，包含 pageId、version、clientRevision、savedAt
-- SearchInput：检索输入，包含 keyword、scope（all / note / paper / feed）、page、queryId（可为空）
-- SearchHit：检索结果项，包含 kind、targetId、title、snippet
-- SearchDocument：检索文档，包含 kind、targetId、title、searchText、updatedAt
-- IndexTask：索引任务，包含 kind、targetId、revision
-- IndexStatus：索引状态，包含 status、processed、total、generation
+- 工作区与订阅 DTO：WorkspaceSession（工作区会话）、SourceInput（订阅源输入）、FeedFilter（条目筛选条件）、ParsedFeed（订阅解析结果）、RefreshSummary（刷新汇总）
+- 文献与笔记 DTO：ImportTicket（PDF 导入凭据）、PDFResource（PDF 读取结果）、NoteSnapshot（笔记快照）、NoteSaveInput（笔记保存输入）、SaveReceipt（保存回执）
+- 检索 DTO：SearchInput（检索输入）、SearchHit（检索结果项）、SearchDocument（检索文档）、IndexTask（索引任务）、IndexStatus（索引状态）
 
 ### 1.4 参考资料
 
@@ -105,11 +84,6 @@
 | 业务逻辑层 | NoteController | INoteController | IUnitOfWork、IPageDAO、IBlockDAO、IReferenceDAO、ISearchDAO |
 | 业务逻辑层 | SearchController | ISearchController | IIndexService、ISearchDAO |
 | 业务逻辑层 | IndexService | IIndexService | IUnitOfWork、ISearchDAO、IPageDAO、IBlockDAO、IFeedItemDAO |
-| 平台服务 | FileDialog | IFileDialog | 操作系统文件选择窗口 |
-| 平台服务 | FileStore | IFileStore | 工作区目录、应用数据目录 |
-| 平台服务 | WorkspaceLock | IWorkspaceLock | 工作区锁文件 |
-| 平台服务 | FeedGateway | IFeedGateway | HTTP 客户端、RSS／Atom 解析器 |
-| 平台服务 | ExternalBrowser | IExternalBrowser | 系统默认浏览器 |
 | 数据访问层 | WorkspaceDAO | IWorkspaceDAO | Workspace（PO，使用） |
 | 数据访问层 | FeedSourceDAO | IFeedSourceDAO | FeedSource（PO，使用） |
 | 数据访问层 | FeedItemDAO | IFeedItemDAO | FeedItem（PO，使用） |
@@ -939,20 +913,13 @@
 | PaperUI | 边界类 | IPaperUI | IPaperController（经 AppAPI） |
 | NoteUI | 边界类 | INoteUI | INoteController（经 AppAPI）、IPaperController（经 AppAPI） |
 | SearchUI | 边界类 | ISearchUI | ISearchController（经 AppAPI）、INoteUI、IPaperUI、IFeedUI |
-| AppAPI | 桥接类 | IAppAPI | IPC 通道 |
-| IPCHandler | 桥接类 | IPC 通道 | IWorkspaceController、ISourceController、IRefreshController、IPaperController、INoteController、ISearchController |
-| WorkspaceController | 控制类 | IWorkspaceController | IFileDialog、IFileStore、IWorkspaceLock、IUnitOfWork、IMigrationRunner、IWorkspaceDAO、IAttachmentDAO、IIndexService |
-| SourceController | 控制类 | ISourceController | IFeedGateway、IUnitOfWork、IFeedSourceDAO |
-| RefreshController | 控制类 | IRefreshController | IFeedGateway、IExternalBrowser、IUnitOfWork、IFeedSourceDAO、IFeedItemDAO、ISearchDAO |
-| PaperController | 控制类 | IPaperController | IFileDialog、IFileStore、IUnitOfWork、IPageDAO、IAttachmentDAO、ISearchDAO |
-| NoteController | 控制类 | INoteController | IUnitOfWork、IPageDAO、IBlockDAO、IReferenceDAO、ISearchDAO |
+| WorkspaceController | 控制类 | IWorkspaceController | IWorkspaceDAO、IAttachmentDAO、IIndexService |
+| SourceController | 控制类 | ISourceController | IFeedSourceDAO |
+| RefreshController | 控制类 | IRefreshController | IFeedSourceDAO、IFeedItemDAO、ISearchDAO |
+| PaperController | 控制类 | IPaperController | IPageDAO、IAttachmentDAO、ISearchDAO |
+| NoteController | 控制类 | INoteController | IPageDAO、IBlockDAO、IReferenceDAO、ISearchDAO |
 | SearchController | 控制类 | ISearchController | IIndexService、ISearchDAO |
-| IndexService | 服务类 | IIndexService | IUnitOfWork、ISearchDAO、IPageDAO、IBlockDAO、IFeedItemDAO |
-| FileDialog | 平台服务类 | IFileDialog | 操作系统文件选择窗口 |
-| FileStore | 平台服务类 | IFileStore | 工作区目录、应用数据目录 |
-| WorkspaceLock | 平台服务类 | IWorkspaceLock | 工作区锁文件 |
-| FeedGateway | 平台服务类 | IFeedGateway | HTTP 客户端、RSS／Atom 解析器 |
-| ExternalBrowser | 平台服务类 | IExternalBrowser | 系统默认浏览器 |
+| IndexService | 控制类 | IIndexService | ISearchDAO、IPageDAO、IBlockDAO、IFeedItemDAO |
 | WorkspaceDAO | DAO 类 | IWorkspaceDAO | Workspace（PO，使用） |
 | FeedSourceDAO | DAO 类 | IFeedSourceDAO | FeedSource（PO，使用） |
 | FeedItemDAO | DAO 类 | IFeedItemDAO | FeedItem（PO，使用） |
@@ -961,8 +928,6 @@
 | AttachmentDAO | DAO 类 | IAttachmentDAO | Attachment（PO，使用） |
 | ReferenceDAO | DAO 类 | IReferenceDAO | — |
 | SearchDAO | DAO 类 | ISearchDAO | SearchDocument、IndexTask（DTO，使用） |
-| UnitOfWork | 数据访问支撑类 | IUnitOfWork | SQLite 连接 |
-| MigrationRunner | 数据访问支撑类 | IMigrationRunner | IUnitOfWork、IFileStore |
 | Workspace | 实体类 | IWorkspace | — |
 | FeedSource | 实体类 | IFeedSource | — |
 | FeedItem | 实体类 | IFeedItem | — |
@@ -1430,7 +1395,7 @@
 
 ## 附录：PlantUML 代码
 
-' 公共样式 _style.iuml（各图以 !include _style.iuml 引用）
+' 公共样式 _style.iuml（体系结构图、状态图、界面图和部署图以 !include _style.iuml 引用）
 ```plantuml
 skinparam defaultFontName Noto Sans CJK SC
 skinparam defaultFontSize 14
@@ -1550,6 +1515,12 @@ classDiagram {
   }
 }
 </style>
+```
+
+' 样本样式 _style_sample.iuml（数据设计类图、接口交互顺序图和构件级类图引用，与《设计文档_格式样本》一致）
+```plantuml
+' 与《设计文档_格式样本》一致：使用 PlantUML 默认主题，只指定中文字体
+skinparam defaultFontName Noto Sans CJK SC
 ```
 
 ```plantuml
@@ -1706,7 +1677,7 @@ BL ..> PO : 使用
 
 ```plantuml
 @startuml 数据设计类图（工作区与订阅）
-!include _style.iuml
+!include _style_sample.iuml
 left to right direction
 
 ' ===== 实体类（PO） =====
@@ -1746,12 +1717,12 @@ class FeedItem {
 }
 
 ' ===== DAO 接口 =====
-interface IWorkspaceDAO <<interface>> {
+interface IWorkspaceDAO {
   + insertMeta(workspace: Workspace, tx: Tx): void
   + selectMeta(): Workspace
   + selectSchemaVersion(): Integer
 }
-interface IFeedSourceDAO <<interface>> {
+interface IFeedSourceDAO {
   + insert(source: FeedSource, tx: Tx): void
   + update(source: FeedSource, tx: Tx): void
   + updateRefreshTime(sourceId: UUID, time: Timestamp, tx: Tx): void
@@ -1760,7 +1731,7 @@ interface IFeedSourceDAO <<interface>> {
   + selectById(sourceId: UUID): FeedSource
   + selectByUrl(url: String): FeedSource
 }
-interface IFeedItemDAO <<interface>> {
+interface IFeedItemDAO {
   + insert(item: FeedItem, tx: Tx): void
   + updateRead(itemId: UUID, tx: Tx): void
   + selectById(itemId: UUID): FeedItem
@@ -1781,15 +1752,16 @@ FeedSourceDAO ..> FeedSource : 使用
 FeedItemDAO ..> FeedItem : 使用
 
 ' 实体关系
-Workspace "1" *-- "0..*" FeedSource
-Workspace "1" *-- "0..*" FeedItem
-FeedSource "0..1" -- "0..*" FeedItem : 来源
+Workspace "1" *- "0..*" FeedSource
+Workspace "1" *- "0..*" FeedItem
+FeedSource "0..1" - "0..*" FeedItem : 来源
 @enduml
 ```
 
 ```plantuml
 @startuml 数据设计类图（页面、内容块与附件）
-!include _style.iuml
+!include _style_sample.iuml
+left to right direction
 
 ' ===== 实体类（PO） =====
 abstract class Page {
@@ -1841,7 +1813,7 @@ class Attachment {
 }
 
 ' ===== DAO 接口 =====
-interface IPageDAO <<interface>> {
+interface IPageDAO {
   + insert(page: Page, tx: Tx): void
   + updateNote(note: NotePage, expectedVersion: Integer, tx: Tx): Integer
   + selectById(pageId: UUID): Page
@@ -1849,19 +1821,19 @@ interface IPageDAO <<interface>> {
   + selectByKind(kind: String, page: Integer): PageResult<Page>
   + selectIndexInput(): List<Page>
 }
-interface IBlockDAO <<interface>> {
+interface IBlockDAO {
   + batchInsert(blocks: List<Block>, tx: Tx): void
   + deleteByPage(pageId: UUID, tx: Tx): void
   + selectByPage(pageId: UUID): List<Block>
   + selectByIds(blockIds: List<UUID>): List<Block>
   + selectNoteText(pageId: UUID): String
 }
-interface IAttachmentDAO <<interface>> {
+interface IAttachmentDAO {
   + insert(attachment: Attachment, tx: Tx): void
   + selectById(attachmentId: UUID): Attachment
   + selectByPaper(paperId: UUID): Attachment
 }
-interface IReferenceDAO <<interface>> {
+interface IReferenceDAO {
   + batchInsert(noteId: UUID, paperIds: List<UUID>, tx: Tx): void
   + deleteByNote(noteId: UUID, tx: Tx): void
   + selectByNote(noteId: UUID): List<UUID>
@@ -1883,17 +1855,18 @@ BlockDAO ..> Block : 使用
 AttachmentDAO ..> Attachment : 使用
 
 ' 实体关系
-Page <|-- NotePage
-Page <|-- PaperPage
-NotePage "1" *-- "0..*" Block : 页内有序
-PaperPage "1" *-- "1" Attachment
-NotePage "0..*" -- "0..*" PaperPage : 引用
+Page <|- NotePage
+Page <|- PaperPage
+NotePage "1" *- "0..*" Block : 页内有序
+PaperPage "1" *- "1" Attachment
+NotePage "0..*" - "0..*" PaperPage : 引用
 @enduml
 ```
 
 ```plantuml
 @startuml 数据设计类图（检索索引）
-!include _style.iuml
+!include _style_sample.iuml
+left to right direction
 
 ' ===== 数据传输对象 =====
 class SearchDocument <<DTO>> {
@@ -1916,7 +1889,7 @@ class IndexStatus <<DTO>> {
 }
 
 ' ===== DAO 接口 =====
-interface ISearchDAO <<interface>> {
+interface ISearchDAO {
   + insertTask(kind: String, targetId: UUID, tx: Tx): void
   + deleteTask(task: IndexTask, tx: Tx): void
   + updateDocument(document: SearchDocument, terms: List<String>, tx: Tx): void
@@ -1937,7 +1910,7 @@ SearchDAO ..> IndexStatus : 使用
 
 ```plantuml
 @startuml UC01 创建工作区顺序图
-!include _style.iuml
+!include _style_sample.iuml
 actor 用户
 boundary WorkspaceUI
 control WorkspaceController
@@ -1953,45 +1926,45 @@ entity Workspace
 用户 -> WorkspaceUI: createWorkspace(name)
 WorkspaceUI -> WorkspaceController: createWorkspace(name)
 WorkspaceController -> IFileDialog: chooseDirectory("create")
-IFileDialog --> WorkspaceController: return path
+IFileDialog -> WorkspaceController: return path
 alt 用户取消选择
-  WorkspaceController --> WorkspaceUI: return Result(success=false, code=CANCELLED)
+  WorkspaceController -> WorkspaceUI: return Result(success=false, code=CANCELLED)
 else 已选定目录
   WorkspaceController -> IFileStore: checkDirectory(path, "create")
-  IFileStore --> WorkspaceController: return rootPath
+  IFileStore -> WorkspaceController: return rootPath
   WorkspaceController -> IWorkspaceLock: acquire(rootPath)
-  IWorkspaceLock --> WorkspaceController: return lockHandle
+  IWorkspaceLock -> WorkspaceController: return lockHandle
   alt 目录无效或已被其他实例打开
-    WorkspaceController --> WorkspaceUI: return Result(success=false, code=INVALID_ARGUMENT／WORKSPACE_BUSY)
+    WorkspaceController -> WorkspaceUI: return Result(success=false, code=INVALID_ARGUMENT／WORKSPACE_BUSY)
   else 目录有效且取得锁
     WorkspaceController -> IFileStore: initLayout(rootPath)
     WorkspaceController -> IUnitOfWork: open(dbPath)
     WorkspaceController -> IMigrationRunner: migrate(0)
-    IMigrationRunner --> WorkspaceController: return schemaVersion
+    IMigrationRunner -> WorkspaceController: return schemaVersion
     WorkspaceController -> Workspace: new Workspace(name)
     WorkspaceController -> IUnitOfWork: begin()
-    IUnitOfWork --> WorkspaceController: return tx
+    IUnitOfWork -> WorkspaceController: return tx
     WorkspaceController -> IWorkspaceDAO: insertMeta(workspace, tx)
     WorkspaceController -> IUnitOfWork: commit(tx)
     alt 初始化成功
       WorkspaceController -> IIndexService: start()
-      WorkspaceController --> WorkspaceUI: return Result(success=true, data=session)
+      WorkspaceController -> WorkspaceUI: return Result(success=true, data=session)
     else 初始化失败
       WorkspaceController -> IUnitOfWork: rollback(tx)
       WorkspaceController -> IUnitOfWork: close()
       WorkspaceController -> IFileStore: removeLayout(rootPath)
       WorkspaceController -> IWorkspaceLock: release(lockHandle)
-      WorkspaceController --> WorkspaceUI: return Result(success=false, code=STORAGE_FAILED)
+      WorkspaceController -> WorkspaceUI: return Result(success=false, code=STORAGE_FAILED)
     end
   end
 end
-WorkspaceUI --> 用户: show workspaceResult
+WorkspaceUI -> 用户: show workspaceResult
 @enduml
 ```
 
 ```plantuml
 @startuml UC01 打开工作区顺序图
-!include _style.iuml
+!include _style_sample.iuml
 actor 用户
 boundary WorkspaceUI
 control WorkspaceController
@@ -2007,32 +1980,32 @@ participant IIndexService
 用户 -> WorkspaceUI: openWorkspace()
 WorkspaceUI -> WorkspaceController: openWorkspace()
 WorkspaceController -> IFileDialog: chooseDirectory("open")
-IFileDialog --> WorkspaceController: return path
+IFileDialog -> WorkspaceController: return path
 alt 用户取消选择
-  WorkspaceController --> WorkspaceUI: return Result(success=false, code=CANCELLED)
+  WorkspaceController -> WorkspaceUI: return Result(success=false, code=CANCELLED)
 else 已选定目录
   WorkspaceController -> IFileStore: checkDirectory(path, "open")
-  IFileStore --> WorkspaceController: return rootPath
+  IFileStore -> WorkspaceController: return rootPath
   WorkspaceController -> IWorkspaceLock: acquire(rootPath)
-  IWorkspaceLock --> WorkspaceController: return lockHandle
+  IWorkspaceLock -> WorkspaceController: return lockHandle
   alt 工作区结构无效或已被其他实例打开
-    WorkspaceController --> WorkspaceUI: return Result(success=false, code=WORKSPACE_INVALID／WORKSPACE_BUSY)
+    WorkspaceController -> WorkspaceUI: return Result(success=false, code=WORKSPACE_INVALID／WORKSPACE_BUSY)
   else 取得锁
     WorkspaceController -> IUnitOfWork: open(dbPath)
     WorkspaceController -> IWorkspaceDAO: selectSchemaVersion()
-    IWorkspaceDAO --> WorkspaceController: return schemaVersion
+    IWorkspaceDAO -> WorkspaceController: return schemaVersion
     opt schemaVersion 低于当前版本
       WorkspaceController -> IMigrationRunner: migrate(schemaVersion)
       IMigrationRunner -> IFileStore: backupDatabase(dbPath)
-      IMigrationRunner --> WorkspaceController: return Result(newVersion)
+      IMigrationRunner -> WorkspaceController: return Result(newVersion)
     end
     WorkspaceController -> IWorkspaceDAO: selectMeta()
-    IWorkspaceDAO --> WorkspaceController: return workspace
+    IWorkspaceDAO -> WorkspaceController: return workspace
     WorkspaceController -> IFileStore: listPendingImports()
-    IFileStore --> WorkspaceController: return ticketList
+    IFileStore -> WorkspaceController: return ticketList
     loop 每条未完成导入
       WorkspaceController -> IAttachmentDAO: selectById(attachmentId)
-      IAttachmentDAO --> WorkspaceController: return attachment
+      IAttachmentDAO -> WorkspaceController: return attachment
       alt 附件记录存在
         WorkspaceController -> IFileStore: finishImport(ticket)
       else 附件记录缺失
@@ -2041,21 +2014,21 @@ else 已选定目录
     end
     alt 打开成功
       WorkspaceController -> IIndexService: start()
-      WorkspaceController --> WorkspaceUI: return Result(success=true, data=session)
+      WorkspaceController -> WorkspaceUI: return Result(success=true, data=session)
     else 迁移或读写失败
       WorkspaceController -> IUnitOfWork: close()
       WorkspaceController -> IWorkspaceLock: release(lockHandle)
-      WorkspaceController --> WorkspaceUI: return Result(success=false, code=MIGRATION_FAILED／STORAGE_FAILED)
+      WorkspaceController -> WorkspaceUI: return Result(success=false, code=MIGRATION_FAILED／STORAGE_FAILED)
     end
   end
 end
-WorkspaceUI --> 用户: show workspaceResult
+WorkspaceUI -> 用户: show workspaceResult
 @enduml
 ```
 
 ```plantuml
 @startuml UC02 管理订阅源顺序图
-!include _style.iuml
+!include _style_sample.iuml
 actor 用户
 boundary SourceUI
 control SourceController
@@ -2069,34 +2042,34 @@ entity FeedSource
 SourceUI -> SourceController: addSource(input)
 SourceController -> SourceController: 校验名称与 http／https 协议
 SourceController -> IFeedSourceDAO: selectByUrl(url)
-IFeedSourceDAO --> SourceController: return existingSource
+IFeedSourceDAO -> SourceController: return existingSource
 alt 协议无效或地址重复
-  SourceController --> SourceUI: return Result(success=false, code=PROTOCOL_REJECTED／SOURCE_DUPLICATE)
+  SourceController -> SourceUI: return Result(success=false, code=PROTOCOL_REJECTED／SOURCE_DUPLICATE)
 else 地址可用
   SourceController -> IFeedGateway: fetchAndParse(url, 30000)
-  IFeedGateway --> SourceController: return parsedFeed
+  IFeedGateway -> SourceController: return parsedFeed
   alt 获取并解析成功
     SourceController -> FeedSource: new FeedSource(name, url)
     SourceController -> IUnitOfWork: begin()
-    IUnitOfWork --> SourceController: return tx
+    IUnitOfWork -> SourceController: return tx
     SourceController -> IFeedSourceDAO: insert(source, tx)
     SourceController -> IUnitOfWork: commit(tx)
-    SourceController --> SourceUI: return Result(success=true, data=source)
+    SourceController -> SourceUI: return Result(success=true, data=source)
   else 获取或解析失败
-    SourceController --> SourceUI: return Result(success=false, code=NETWORK_TIMEOUT／NETWORK_FAILED／FEED_INVALID)
+    SourceController -> SourceUI: return Result(success=false, code=NETWORK_TIMEOUT／NETWORK_FAILED／FEED_INVALID)
   end
 end
-SourceUI --> 用户: show sourceList
+SourceUI -> 用户: show sourceList
 
 == 修改订阅源 ==
 用户 -> SourceUI: editSource(sourceId, name, url)
 SourceUI -> SourceController: updateSource(sourceId, input)
 SourceController -> IFeedSourceDAO: selectById(sourceId)
-IFeedSourceDAO --> SourceController: return source
+IFeedSourceDAO -> SourceController: return source
 opt 地址发生变化
   SourceController -> IFeedSourceDAO: selectByUrl(url)
   SourceController -> IFeedGateway: fetchAndParse(url, 30000)
-  IFeedGateway --> SourceController: return parsedFeed
+  IFeedGateway -> SourceController: return parsedFeed
   SourceController -> FeedSource: changeUrl(url)
 end
 opt 名称发生变化
@@ -2105,8 +2078,8 @@ end
 SourceController -> IUnitOfWork: begin()
 SourceController -> IFeedSourceDAO: update(source, tx)
 SourceController -> IUnitOfWork: commit(tx)
-SourceController --> SourceUI: return Result(success=true, data=source)
-SourceUI --> 用户: show sourceList
+SourceController -> SourceUI: return Result(success=true, data=source)
+SourceUI -> 用户: show sourceList
 
 == 移除订阅源 ==
 用户 -> SourceUI: removeSource(sourceId)
@@ -2116,14 +2089,14 @@ SourceController -> IUnitOfWork: begin()
 SourceController -> IFeedSourceDAO: delete(sourceId, tx)
 note right of IFeedSourceDAO: feed_items.source_id 置空\n保留 source_name 与 is_read
 SourceController -> IUnitOfWork: commit(tx)
-SourceController --> SourceUI: return Result(success=true)
-SourceUI --> 用户: show sourceList
+SourceController -> SourceUI: return Result(success=true)
+SourceUI -> 用户: show sourceList
 @enduml
 ```
 
 ```plantuml
 @startuml UC03 刷新与阅读订阅顺序图
-!include _style.iuml
+!include _style_sample.iuml
 actor 用户
 boundary FeedUI
 control RefreshController
@@ -2140,19 +2113,19 @@ entity FeedItem
 用户 -> FeedUI: refreshFeed(sourceId)
 FeedUI -> RefreshController: refresh(sourceId)
 RefreshController -> IFeedSourceDAO: selectAll() 或 selectById(sourceId)
-IFeedSourceDAO --> RefreshController: return sourceList
+IFeedSourceDAO -> RefreshController: return sourceList
 loop 每个订阅源
   RefreshController -> FeedSource: setStatus("REFRESHING")
   RefreshController -> IFeedGateway: fetchAndParse(url, 30000)
-  IFeedGateway --> RefreshController: return parsedFeed
+  IFeedGateway -> RefreshController: return parsedFeed
   alt 获取并解析成功
     RefreshController -> RefreshController: 规范化原文链接，无可用链接计入 skipped
     RefreshController -> IUnitOfWork: begin()
-    IUnitOfWork --> RefreshController: return tx
+    IUnitOfWork -> RefreshController: return tx
     RefreshController -> IFeedSourceDAO: selectById(sourceId)
     loop 每个候选条目
       RefreshController -> IFeedItemDAO: selectByUrl(url)
-      IFeedItemDAO --> RefreshController: return existingItem
+      IFeedItemDAO -> RefreshController: return existingItem
       alt 条目不存在
         RefreshController -> IFeedItemDAO: insert(item, tx)
         RefreshController -> ISearchDAO: insertTask("feed", itemId, tx)
@@ -2173,40 +2146,40 @@ loop 每个订阅源
     RefreshController -> FeedSource: setStatus("FETCH_FAILED")
   end
 end
-RefreshController --> FeedUI: return Result(success=true, data=summary)
-FeedUI --> 用户: show refreshSummary
+RefreshController -> FeedUI: return Result(success=true, data=summary)
+FeedUI -> 用户: show refreshSummary
 
 == 阅读条目 ==
 用户 -> FeedUI: openItem(itemId)
 FeedUI -> RefreshController: readItem(itemId)
 RefreshController -> IFeedItemDAO: selectById(itemId)
-IFeedItemDAO --> RefreshController: return item
+IFeedItemDAO -> RefreshController: return item
 opt 条目未读
   RefreshController -> FeedItem: markRead()
   RefreshController -> IUnitOfWork: begin()
   RefreshController -> IFeedItemDAO: updateRead(itemId, tx)
   RefreshController -> IUnitOfWork: commit(tx)
 end
-RefreshController --> FeedUI: return Result(success=true, data=item)
-FeedUI --> 用户: show itemSummary
+RefreshController -> FeedUI: return Result(success=true, data=item)
+FeedUI -> 用户: show itemSummary
 
 == 打开原文 ==
 用户 -> FeedUI: openOriginal(itemId)
 FeedUI -> RefreshController: openOriginal(itemId)
 RefreshController -> IFeedItemDAO: selectById(itemId)
-IFeedItemDAO --> RefreshController: return item
+IFeedItemDAO -> RefreshController: return item
 alt 链接为 http／https
   RefreshController -> IExternalBrowser: open(url)
-  RefreshController --> FeedUI: return Result(success=true)
+  RefreshController -> FeedUI: return Result(success=true)
 else 其他协议
-  RefreshController --> FeedUI: return Result(success=false, code=PROTOCOL_REJECTED)
+  RefreshController -> FeedUI: return Result(success=false, code=PROTOCOL_REJECTED)
 end
 @enduml
 ```
 
 ```plantuml
 @startuml UC04 导入与阅读 PDF 顺序图
-!include _style.iuml
+!include _style_sample.iuml
 actor 用户
 boundary PaperUI
 control PaperController
@@ -2223,62 +2196,62 @@ entity Attachment
 用户 -> PaperUI: importPDF()
 PaperUI -> PaperController: importPDF()
 PaperController -> IFileDialog: choosePDF()
-IFileDialog --> PaperController: return path
+IFileDialog -> PaperController: return path
 alt 用户取消选择
-  PaperController --> PaperUI: return Result(success=false, code=CANCELLED)
+  PaperController -> PaperUI: return Result(success=false, code=CANCELLED)
 else 已选择文件
   PaperController -> IFileStore: checkPDF(path)
-  IFileStore --> PaperController: return size
+  IFileStore -> PaperController: return size
   alt 文件不可读、格式无效或空间不足
-    PaperController --> PaperUI: return Result(success=false, code=PDF_INVALID／FILE_UNAVAILABLE／DISK_FULL)
+    PaperController -> PaperUI: return Result(success=false, code=PDF_INVALID／FILE_UNAVAILABLE／DISK_FULL)
   else 检查通过
     PaperController -> PaperPage: new PaperPage(title)
     PaperController -> Attachment: new Attachment(paperId, originalName, size)
     PaperController -> PaperPage: bindAttachment(attachmentId)
     PaperController -> IFileStore: prepareImport(path, attachmentId)
-    IFileStore --> PaperController: return ticket
+    IFileStore -> PaperController: return ticket
     PaperController -> IFileStore: publishImport(ticket)
-    IFileStore --> PaperController: return relativePath
+    IFileStore -> PaperController: return relativePath
     PaperController -> IUnitOfWork: begin()
-    IUnitOfWork --> PaperController: return tx
+    IUnitOfWork -> PaperController: return tx
     PaperController -> IPageDAO: insert(paper, tx)
     PaperController -> IAttachmentDAO: insert(attachment, tx)
     PaperController -> ISearchDAO: insertTask("paper", paperId, tx)
     PaperController -> IUnitOfWork: commit(tx)
     alt 提交成功
       PaperController -> IFileStore: finishImport(ticket)
-      PaperController --> PaperUI: return Result(success=true, data=paper)
+      PaperController -> PaperUI: return Result(success=true, data=paper)
     else 文件或数据库操作失败
       PaperController -> IUnitOfWork: rollback(tx)
       PaperController -> IFileStore: rollbackImport(ticket)
-      PaperController --> PaperUI: return Result(success=false, code=STORAGE_FAILED／DISK_FULL)
+      PaperController -> PaperUI: return Result(success=false, code=STORAGE_FAILED／DISK_FULL)
     end
   end
 end
-PaperUI --> 用户: show paperList
+PaperUI -> 用户: show paperList
 
 == 阅读 PDF ==
 用户 -> PaperUI: openPaper(paperId)
 PaperUI -> PaperController: readPDF(paperId)
 PaperController -> IAttachmentDAO: selectByPaper(paperId)
-IAttachmentDAO --> PaperController: return attachment
+IAttachmentDAO -> PaperController: return attachment
 PaperController -> IFileStore: readAttachment(relativePath)
-IFileStore --> PaperController: return bytes
+IFileStore -> PaperController: return bytes
 alt 附件可读
-  PaperController --> PaperUI: return Result(success=true, data=pdfResource)
-  PaperUI --> 用户: show 首屏页面（加密文件先输入密码）
+  PaperController -> PaperUI: return Result(success=true, data=pdfResource)
+  PaperUI -> 用户: show 首屏页面（加密文件先输入密码）
   用户 -> PaperUI: turnPage(pageNo)／zoom(scale)／findText(keyword)
-  PaperUI --> 用户: show 页面与匹配位置
+  PaperUI -> 用户: show 页面与匹配位置
 else 附件缺失
-  PaperController --> PaperUI: return Result(success=false, code=FILE_UNAVAILABLE)
-  PaperUI --> 用户: show 错误提示
+  PaperController -> PaperUI: return Result(success=false, code=FILE_UNAVAILABLE)
+  PaperUI -> 用户: show 错误提示
 end
 @enduml
 ```
 
 ```plantuml
 @startuml UC05 编辑与保存笔记顺序图
-!include _style.iuml
+!include _style_sample.iuml
 actor 用户
 boundary NoteUI
 control NoteController
@@ -2293,13 +2266,13 @@ entity NotePage
 用户 -> NoteUI: openNote(noteId)
 NoteUI -> NoteController: loadNote(noteId)
 NoteController -> IPageDAO: selectById(noteId)
-IPageDAO --> NoteController: return note
+IPageDAO -> NoteController: return note
 NoteController -> IBlockDAO: selectByPage(noteId)
-IBlockDAO --> NoteController: return blocks
+IBlockDAO -> NoteController: return blocks
 NoteController -> IReferenceDAO: selectByNote(noteId)
-IReferenceDAO --> NoteController: return paperIds
-NoteController --> NoteUI: return Result(success=true, data=snapshot)
-NoteUI --> 用户: show 笔记内容
+IReferenceDAO -> NoteController: return paperIds
+NoteController -> NoteUI: return Result(success=true, data=snapshot)
+NoteUI -> 用户: show 笔记内容
 
 == 编辑并自动保存 ==
 用户 -> NoteUI: editNote(title, blocks)／insertPaperLink(paperId)
@@ -2307,18 +2280,18 @@ NoteUI -> NoteUI: 停止输入满 1 秒，生成 NoteSaveInput
 NoteUI -> NoteController: saveNote(input)
 NoteController -> NoteController: 校验块类型、标识与 order，提取 paperIds
 NoteController -> IUnitOfWork: begin()
-IUnitOfWork --> NoteController: return tx
+IUnitOfWork -> NoteController: return tx
 NoteController -> IPageDAO: selectById(pageId)
-IPageDAO --> NoteController: return note
+IPageDAO -> NoteController: return note
 NoteController -> IBlockDAO: selectByIds(blockIds)
-IBlockDAO --> NoteController: return existingBlocks
+IBlockDAO -> NoteController: return existingBlocks
 NoteController -> IPageDAO: selectByIds(paperIds)
-IPageDAO --> NoteController: return papers
+IPageDAO -> NoteController: return papers
 alt 版本一致且块与引用目标有效
   NoteController -> NotePage: rename(title)
   NoteController -> NotePage: applyContent(blocks, paperIds)
   NoteController -> IPageDAO: updateNote(note, baseVersion, tx)
-  IPageDAO --> NoteController: return 1
+  IPageDAO -> NoteController: return 1
   NoteController -> IBlockDAO: deleteByPage(pageId, tx)
   NoteController -> IBlockDAO: batchInsert(blocks, tx)
   NoteController -> IReferenceDAO: deleteByNote(pageId, tx)
@@ -2326,24 +2299,24 @@ alt 版本一致且块与引用目标有效
   NoteController -> ISearchDAO: insertTask("note", pageId, tx)
   NoteController -> IUnitOfWork: commit(tx)
   alt 提交成功
-    NoteController --> NoteUI: return Result(success=true, data=receipt)
-    NoteUI --> 用户: show 已保存
+    NoteController -> NoteUI: return Result(success=true, data=receipt)
+    NoteUI -> 用户: show 已保存
   else 写入失败
     NoteController -> IUnitOfWork: rollback(tx)
-    NoteController --> NoteUI: return Result(success=false, code=STORAGE_FAILED)
-    NoteUI --> 用户: show 保存失败，保留草稿并提供重试
+    NoteController -> NoteUI: return Result(success=false, code=STORAGE_FAILED)
+    NoteUI -> 用户: show 保存失败，保留草稿并提供重试
   end
 else 版本冲突或校验失败
   NoteController -> IUnitOfWork: rollback(tx)
-  NoteController --> NoteUI: return Result(success=false, code=VERSION_CONFLICT／INVALID_ARGUMENT)
-  NoteUI --> 用户: show 保留草稿并显示原因
+  NoteController -> NoteUI: return Result(success=false, code=VERSION_CONFLICT／INVALID_ARGUMENT)
+  NoteUI -> 用户: show 保留草稿并显示原因
 end
 @enduml
 ```
 
 ```plantuml
 @startuml UC06 检索资料顺序图
-!include _style.iuml
+!include _style_sample.iuml
 actor 用户
 boundary SearchUI
 control SearchController
@@ -2355,94 +2328,63 @@ boundary "NoteUI／PaperUI／FeedUI" as TargetUI
 SearchUI -> SearchController: search(input)
 SearchController -> SearchController: 校验 keyword、scope、page
 SearchController -> IIndexService: getStatus()
-IIndexService --> SearchController: return indexStatus
+IIndexService -> SearchController: return indexStatus
 alt READY
   alt queryId 为空（首次查询）
     SearchController -> IIndexService: tokenize(keyword)
-    IIndexService --> SearchController: return terms
+    IIndexService -> SearchController: return terms
     SearchController -> ISearchDAO: selectCandidates(terms, scope)
-    ISearchDAO --> SearchController: return documentList
+    ISearchDAO -> SearchController: return documentList
     SearchController -> SearchController: 核对完整关键词，生成片段\n按类型分组排序，保存 queryId 快照
   else queryId 非空（翻页）
     SearchController -> SearchController: 核对 queryId、keyword 与 scope
   end
   alt 快照有效
-    SearchController --> SearchUI: return Result(success=true, data=pageResult)
-    SearchUI --> 用户: show 分类结果与匹配片段
+    SearchController -> SearchUI: return Result(success=true, data=pageResult)
+    SearchUI -> 用户: show 分类结果与匹配片段
     用户 -> SearchUI: openResult(hit)
     SearchUI -> TargetUI: 按 kind 打开 targetId
-    TargetUI --> 用户: show 目标笔记、文献或条目
+    TargetUI -> 用户: show 目标笔记、文献或条目
   else 快照失效
-    SearchController --> SearchUI: return Result(success=false, code=QUERY_EXPIRED)
-    SearchUI --> 用户: show 重新检索提示
+    SearchController -> SearchUI: return Result(success=false, code=QUERY_EXPIRED)
+    SearchUI -> 用户: show 重新检索提示
   end
 else BUILDING
-  SearchController --> SearchUI: return Result(success=false, code=INDEX_NOT_READY)
-  SearchUI --> 用户: show 索引构建进度
+  SearchController -> SearchUI: return Result(success=false, code=INDEX_NOT_READY)
+  SearchUI -> 用户: show 索引构建进度
 else FAILED
-  SearchController --> SearchUI: return Result(success=false, code=INDEX_FAILED)
-  SearchUI --> 用户: show 重建索引入口
+  SearchController -> SearchUI: return Result(success=false, code=INDEX_FAILED)
+  SearchUI -> 用户: show 重建索引入口
 end
 @enduml
 ```
 
 ```plantuml
 @startuml UC01 构件级类图
-!include _style.iuml
+!include _style_sample.iuml
 left to right direction
 
-interface IWorkspaceUI <<interface>> {
+interface IWorkspaceUI {
   + createWorkspace(name: String): Result<WorkspaceSession>
   + openWorkspace(): Result<WorkspaceSession>
   + closeWorkspace(): Result<Void>
 }
-interface IWorkspaceController <<interface>> {
+interface IWorkspaceController {
   + createWorkspace(name: String): Result<WorkspaceSession>
   + openWorkspace(): Result<WorkspaceSession>
   + closeWorkspace(): Result<Void>
 }
-interface IFileDialog <<interface>> {
-  + chooseDirectory(mode: String): Result<String>
-  + choosePDF(): Result<String>
-}
-interface IFileStore <<interface>> {
-  + checkDirectory(path: String, mode: String): Result<String>
-  + initLayout(rootPath: String): void
-  + removeLayout(rootPath: String): void
-  + backupDatabase(dbPath: String): String
-  + checkPDF(path: String): Result<Integer>
-  + prepareImport(path: String, attachmentId: UUID): ImportTicket
-  + publishImport(ticket: ImportTicket): String
-  + finishImport(ticket: ImportTicket): void
-  + rollbackImport(ticket: ImportTicket): Boolean
-  + listPendingImports(): List<ImportTicket>
-  + readAttachment(relativePath: String): Byte[]
-}
-interface IWorkspaceLock <<interface>> {
-  + acquire(rootPath: String): Result<String>
-  + release(lockHandle: String): void
-}
-interface IUnitOfWork <<interface>> {
-  + open(dbPath: String): void
-  + begin(): Tx
-  + commit(tx: Tx): void
-  + rollback(tx: Tx): void
-  + close(): void
-}
-interface IMigrationRunner <<interface>> {
-  + migrate(fromVersion: Integer): Result<Integer>
-}
-interface IWorkspaceDAO <<interface>> {
+interface IWorkspaceDAO {
   + insertMeta(workspace: Workspace, tx: Tx): void
   + selectMeta(): Workspace
   + selectSchemaVersion(): Integer
 }
-interface IAttachmentDAO <<interface>> {
+interface IAttachmentDAO {
   + insert(attachment: Attachment, tx: Tx): void
   + selectById(attachmentId: UUID): Attachment
   + selectByPaper(paperId: UUID): Attachment
 }
-interface IIndexService <<interface>> {
+interface IIndexService {
   + start(): void
   + stop(): void
   + getStatus(): IndexStatus
@@ -2470,11 +2412,6 @@ WorkspaceDAO ..|> IWorkspaceDAO
 
 ' 依赖关系
 WorkspaceUI ..> IWorkspaceController
-WorkspaceController ..> IFileDialog
-WorkspaceController ..> IFileStore
-WorkspaceController ..> IWorkspaceLock
-WorkspaceController ..> IUnitOfWork
-WorkspaceController ..> IMigrationRunner
 WorkspaceController ..> IWorkspaceDAO
 WorkspaceController ..> IAttachmentDAO
 WorkspaceController ..> IIndexService
@@ -2486,44 +2423,34 @@ WorkspaceDAO ..> Workspace : 使用
 
 ```plantuml
 @startuml UC02、UC03 构件级类图
-!include _style.iuml
+!include _style_sample.iuml
 left to right direction
 
-interface ISourceUI <<interface>> {
+interface ISourceUI {
   + querySources(): List<FeedSource>
   + addSource(name: String, url: String): Result<FeedSource>
   + editSource(sourceId: UUID, name: String, url: String): Result<FeedSource>
   + removeSource(sourceId: UUID): Result<Void>
 }
-interface ISourceController <<interface>> {
+interface ISourceController {
   + listSources(): Result<List<FeedSource>>
   + addSource(input: SourceInput): Result<FeedSource>
   + updateSource(sourceId: UUID, input: SourceInput): Result<FeedSource>
   + removeSource(sourceId: UUID): Result<Void>
 }
-interface IFeedUI <<interface>> {
+interface IFeedUI {
   + refreshFeed(sourceId: UUID): Result<RefreshSummary>
   + queryItems(filter: FeedFilter, page: Integer): PageResult<FeedItem>
   + openItem(itemId: UUID): Result<FeedItem>
   + openOriginal(itemId: UUID): Result<Void>
 }
-interface IRefreshController <<interface>> {
+interface IRefreshController {
   + refresh(sourceId: UUID): Result<RefreshSummary>
   + listItems(filter: FeedFilter, page: Integer): Result<PageResult<FeedItem>>
   + readItem(itemId: UUID): Result<FeedItem>
   + openOriginal(itemId: UUID): Result<Void>
 }
-interface IFeedGateway <<interface>> {
-  + fetchAndParse(url: String, timeoutMs: Integer): Result<ParsedFeed>
-}
-interface IUnitOfWork <<interface>> {
-  + open(dbPath: String): void
-  + begin(): Tx
-  + commit(tx: Tx): void
-  + rollback(tx: Tx): void
-  + close(): void
-}
-interface IFeedSourceDAO <<interface>> {
+interface IFeedSourceDAO {
   + insert(source: FeedSource, tx: Tx): void
   + update(source: FeedSource, tx: Tx): void
   + updateRefreshTime(sourceId: UUID, time: Timestamp, tx: Tx): void
@@ -2532,10 +2459,7 @@ interface IFeedSourceDAO <<interface>> {
   + selectById(sourceId: UUID): FeedSource
   + selectByUrl(url: String): FeedSource
 }
-interface IExternalBrowser <<interface>> {
-  + open(url: String): Result<Void>
-}
-interface IFeedItemDAO <<interface>> {
+interface IFeedItemDAO {
   + insert(item: FeedItem, tx: Tx): void
   + updateRead(itemId: UUID, tx: Tx): void
   + selectById(itemId: UUID): FeedItem
@@ -2543,7 +2467,7 @@ interface IFeedItemDAO <<interface>> {
   + selectPage(filter: FeedFilter, page: Integer): PageResult<FeedItem>
   + selectIndexInput(): List<FeedItem>
 }
-interface ISearchDAO <<interface>> {
+interface ISearchDAO {
   + insertTask(kind: String, targetId: UUID, tx: Tx): void
   + deleteTask(task: IndexTask, tx: Tx): void
   + updateDocument(document: SearchDocument, terms: List<String>, tx: Tx): void
@@ -2595,12 +2519,7 @@ FeedItemDAO ..|> IFeedItemDAO
 ' 依赖关系
 SourceUI ..> ISourceController
 FeedUI ..> IRefreshController
-SourceController ..> IFeedGateway
-SourceController ..> IUnitOfWork
 SourceController ..> IFeedSourceDAO
-RefreshController ..> IFeedGateway
-RefreshController ..> IExternalBrowser
-RefreshController ..> IUnitOfWork
 RefreshController ..> IFeedSourceDAO
 RefreshController ..> IFeedItemDAO
 RefreshController ..> ISearchDAO
@@ -2610,16 +2529,16 @@ FeedSourceDAO ..> FeedSource : 使用
 FeedItemDAO ..> FeedItem : 使用
 
 ' 实体关系
-FeedSource "0..1" -- "0..*" FeedItem : 来源
+FeedSource "0..1" - "0..*" FeedItem : 来源
 @enduml
 ```
 
 ```plantuml
 @startuml UC04 构件级类图
-!include _style.iuml
+!include _style_sample.iuml
 left to right direction
 
-interface IPaperUI <<interface>> {
+interface IPaperUI {
   + importPDF(): Result<PaperPage>
   + queryPapers(page: Integer): PageResult<PaperPage>
   + openPaper(paperId: UUID): Result<PDFResource>
@@ -2628,36 +2547,12 @@ interface IPaperUI <<interface>> {
   + findText(keyword: String): Integer
   + cancelFind(): void
 }
-interface IPaperController <<interface>> {
+interface IPaperController {
   + importPDF(): Result<PaperPage>
   + listPapers(page: Integer): Result<PageResult<PaperPage>>
   + readPDF(paperId: UUID): Result<PDFResource>
 }
-interface IFileDialog <<interface>> {
-  + chooseDirectory(mode: String): Result<String>
-  + choosePDF(): Result<String>
-}
-interface IFileStore <<interface>> {
-  + checkDirectory(path: String, mode: String): Result<String>
-  + initLayout(rootPath: String): void
-  + removeLayout(rootPath: String): void
-  + backupDatabase(dbPath: String): String
-  + checkPDF(path: String): Result<Integer>
-  + prepareImport(path: String, attachmentId: UUID): ImportTicket
-  + publishImport(ticket: ImportTicket): String
-  + finishImport(ticket: ImportTicket): void
-  + rollbackImport(ticket: ImportTicket): Boolean
-  + listPendingImports(): List<ImportTicket>
-  + readAttachment(relativePath: String): Byte[]
-}
-interface IUnitOfWork <<interface>> {
-  + open(dbPath: String): void
-  + begin(): Tx
-  + commit(tx: Tx): void
-  + rollback(tx: Tx): void
-  + close(): void
-}
-interface IPageDAO <<interface>> {
+interface IPageDAO {
   + insert(page: Page, tx: Tx): void
   + updateNote(note: NotePage, expectedVersion: Integer, tx: Tx): Integer
   + selectById(pageId: UUID): Page
@@ -2665,12 +2560,12 @@ interface IPageDAO <<interface>> {
   + selectByKind(kind: String, page: Integer): PageResult<Page>
   + selectIndexInput(): List<Page>
 }
-interface IAttachmentDAO <<interface>> {
+interface IAttachmentDAO {
   + insert(attachment: Attachment, tx: Tx): void
   + selectById(attachmentId: UUID): Attachment
   + selectByPaper(paperId: UUID): Attachment
 }
-interface ISearchDAO <<interface>> {
+interface ISearchDAO {
   + insertTask(kind: String, targetId: UUID, tx: Tx): void
   + deleteTask(task: IndexTask, tx: Tx): void
   + updateDocument(document: SearchDocument, terms: List<String>, tx: Tx): void
@@ -2720,9 +2615,6 @@ AttachmentDAO ..|> IAttachmentDAO
 
 ' 依赖关系
 PaperUI ..> IPaperController
-PaperController ..> IFileDialog
-PaperController ..> IFileStore
-PaperController ..> IUnitOfWork
 PaperController ..> IPageDAO
 PaperController ..> IAttachmentDAO
 PaperController ..> ISearchDAO
@@ -2733,17 +2625,17 @@ PageDAO ..> PaperPage : 使用
 AttachmentDAO ..> Attachment : 使用
 
 ' 实体关系
-Page <|-- PaperPage
-PaperPage "1" *-- "1" Attachment
+Page <|- PaperPage
+PaperPage "1" *- "1" Attachment
 @enduml
 ```
 
 ```plantuml
 @startuml UC05 构件级类图
-!include _style.iuml
+!include _style_sample.iuml
 left to right direction
 
-interface INoteUI <<interface>> {
+interface INoteUI {
   + createNote(title: String): Result<NoteSnapshot>
   + queryNotes(page: Integer): PageResult<NotePage>
   + openNote(noteId: UUID): Result<NoteSnapshot>
@@ -2751,25 +2643,18 @@ interface INoteUI <<interface>> {
   + insertPaperLink(paperId: UUID): void
   + retrySave(): Result<SaveReceipt>
 }
-interface INoteController <<interface>> {
+interface INoteController {
   + createNote(title: String): Result<NoteSnapshot>
   + listNotes(page: Integer): Result<PageResult<NotePage>>
   + loadNote(noteId: UUID): Result<NoteSnapshot>
   + saveNote(input: NoteSaveInput): Result<SaveReceipt>
 }
-interface IPaperController <<interface>> {
+interface IPaperController {
   + importPDF(): Result<PaperPage>
   + listPapers(page: Integer): Result<PageResult<PaperPage>>
   + readPDF(paperId: UUID): Result<PDFResource>
 }
-interface IUnitOfWork <<interface>> {
-  + open(dbPath: String): void
-  + begin(): Tx
-  + commit(tx: Tx): void
-  + rollback(tx: Tx): void
-  + close(): void
-}
-interface IPageDAO <<interface>> {
+interface IPageDAO {
   + insert(page: Page, tx: Tx): void
   + updateNote(note: NotePage, expectedVersion: Integer, tx: Tx): Integer
   + selectById(pageId: UUID): Page
@@ -2777,19 +2662,19 @@ interface IPageDAO <<interface>> {
   + selectByKind(kind: String, page: Integer): PageResult<Page>
   + selectIndexInput(): List<Page>
 }
-interface IBlockDAO <<interface>> {
+interface IBlockDAO {
   + batchInsert(blocks: List<Block>, tx: Tx): void
   + deleteByPage(pageId: UUID, tx: Tx): void
   + selectByPage(pageId: UUID): List<Block>
   + selectByIds(blockIds: List<UUID>): List<Block>
   + selectNoteText(pageId: UUID): String
 }
-interface IReferenceDAO <<interface>> {
+interface IReferenceDAO {
   + batchInsert(noteId: UUID, paperIds: List<UUID>, tx: Tx): void
   + deleteByNote(noteId: UUID, tx: Tx): void
   + selectByNote(noteId: UUID): List<UUID>
 }
-interface ISearchDAO <<interface>> {
+interface ISearchDAO {
   + insertTask(kind: String, targetId: UUID, tx: Tx): void
   + deleteTask(task: IndexTask, tx: Tx): void
   + updateDocument(document: SearchDocument, terms: List<String>, tx: Tx): void
@@ -2844,7 +2729,6 @@ ReferenceDAO ..|> IReferenceDAO
 ' 依赖关系
 NoteUI ..> INoteController
 NoteUI ..> IPaperController
-NoteController ..> IUnitOfWork
 NoteController ..> IPageDAO
 NoteController ..> IBlockDAO
 NoteController ..> IReferenceDAO
@@ -2856,27 +2740,27 @@ PageDAO ..> NotePage : 使用
 BlockDAO ..> Block : 使用
 
 ' 实体关系
-Page <|-- NotePage
-NotePage "1" *-- "0..*" Block : 页内有序
+Page <|- NotePage
+NotePage "1" *- "0..*" Block : 页内有序
 @enduml
 ```
 
 ```plantuml
 @startuml UC06 构件级类图
-!include _style.iuml
+!include _style_sample.iuml
 left to right direction
 
-interface ISearchUI <<interface>> {
+interface ISearchUI {
   + submitSearch(keyword: String, scope: String): PageResult<SearchHit>
   + changePage(page: Integer): PageResult<SearchHit>
   + openResult(hit: SearchHit): void
 }
-interface ISearchController <<interface>> {
+interface ISearchController {
   + getIndexStatus(): Result<IndexStatus>
   + rebuildIndex(): Result<IndexStatus>
   + search(input: SearchInput): Result<PageResult<SearchHit>>
 }
-interface IIndexService <<interface>> {
+interface IIndexService {
   + start(): void
   + stop(): void
   + getStatus(): IndexStatus
@@ -2884,7 +2768,7 @@ interface IIndexService <<interface>> {
   + processQueue(): Integer
   + tokenize(text: String): List<String>
 }
-interface ISearchDAO <<interface>> {
+interface ISearchDAO {
   + insertTask(kind: String, targetId: UUID, tx: Tx): void
   + deleteTask(task: IndexTask, tx: Tx): void
   + updateDocument(document: SearchDocument, terms: List<String>, tx: Tx): void
@@ -2893,14 +2777,7 @@ interface ISearchDAO <<interface>> {
   + selectCandidates(terms: List<String>, scope: String): List<SearchDocument>
   + selectStatus(): IndexStatus
 }
-interface IUnitOfWork <<interface>> {
-  + open(dbPath: String): void
-  + begin(): Tx
-  + commit(tx: Tx): void
-  + rollback(tx: Tx): void
-  + close(): void
-}
-interface IPageDAO <<interface>> {
+interface IPageDAO {
   + insert(page: Page, tx: Tx): void
   + updateNote(note: NotePage, expectedVersion: Integer, tx: Tx): Integer
   + selectById(pageId: UUID): Page
@@ -2908,14 +2785,14 @@ interface IPageDAO <<interface>> {
   + selectByKind(kind: String, page: Integer): PageResult<Page>
   + selectIndexInput(): List<Page>
 }
-interface IBlockDAO <<interface>> {
+interface IBlockDAO {
   + batchInsert(blocks: List<Block>, tx: Tx): void
   + deleteByPage(pageId: UUID, tx: Tx): void
   + selectByPage(pageId: UUID): List<Block>
   + selectByIds(blockIds: List<UUID>): List<Block>
   + selectNoteText(pageId: UUID): String
 }
-interface IFeedItemDAO <<interface>> {
+interface IFeedItemDAO {
   + insert(item: FeedItem, tx: Tx): void
   + updateRead(itemId: UUID, tx: Tx): void
   + selectById(itemId: UUID): FeedItem
@@ -2938,7 +2815,6 @@ SearchDAO ..|> ISearchDAO
 SearchUI ..> ISearchController
 SearchController ..> IIndexService
 SearchController ..> ISearchDAO
-IndexService ..> IUnitOfWork
 IndexService ..> ISearchDAO
 IndexService ..> IPageDAO
 IndexService ..> IBlockDAO

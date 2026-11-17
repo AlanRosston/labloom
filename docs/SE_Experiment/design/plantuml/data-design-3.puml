@@ -1,5 +1,6 @@
 @startuml 数据设计类图（检索索引）
-!include _style.iuml
+!include _style_sample.iuml
+left to right direction
 
 ' ===== 数据传输对象 =====
 class SearchDocument <<DTO>> {
@@ -22,7 +23,7 @@ class IndexStatus <<DTO>> {
 }
 
 ' ===== DAO 接口 =====
-interface ISearchDAO <<interface>> {
+interface ISearchDAO {
   + insertTask(kind: String, targetId: UUID, tx: Tx): void
   + deleteTask(task: IndexTask, tx: Tx): void
   + updateDocument(document: SearchDocument, terms: List<String>, tx: Tx): void

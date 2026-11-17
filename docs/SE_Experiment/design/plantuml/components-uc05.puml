@@ -1,8 +1,8 @@
 @startuml UC05 构件级类图
-!include _style.iuml
+!include _style_sample.iuml
 left to right direction
 
-interface INoteUI <<interface>> {
+interface INoteUI {
   + createNote(title: String): Result<NoteSnapshot>
   + queryNotes(page: Integer): PageResult<NotePage>
   + openNote(noteId: UUID): Result<NoteSnapshot>
@@ -10,25 +10,18 @@ interface INoteUI <<interface>> {
   + insertPaperLink(paperId: UUID): void
   + retrySave(): Result<SaveReceipt>
 }
-interface INoteController <<interface>> {
+interface INoteController {
   + createNote(title: String): Result<NoteSnapshot>
   + listNotes(page: Integer): Result<PageResult<NotePage>>
   + loadNote(noteId: UUID): Result<NoteSnapshot>
   + saveNote(input: NoteSaveInput): Result<SaveReceipt>
 }
-interface IPaperController <<interface>> {
+interface IPaperController {
   + importPDF(): Result<PaperPage>
   + listPapers(page: Integer): Result<PageResult<PaperPage>>
   + readPDF(paperId: UUID): Result<PDFResource>
 }
-interface IUnitOfWork <<interface>> {
-  + open(dbPath: String): void
-  + begin(): Tx
-  + commit(tx: Tx): void
-  + rollback(tx: Tx): void
-  + close(): void
-}
-interface IPageDAO <<interface>> {
+interface IPageDAO {
   + insert(page: Page, tx: Tx): void
   + updateNote(note: NotePage, expectedVersion: Integer, tx: Tx): Integer
   + selectById(pageId: UUID): Page
@@ -36,19 +29,19 @@ interface IPageDAO <<interface>> {
   + selectByKind(kind: String, page: Integer): PageResult<Page>
   + selectIndexInput(): List<Page>
 }
-interface IBlockDAO <<interface>> {
+interface IBlockDAO {
   + batchInsert(blocks: List<Block>, tx: Tx): void
   + deleteByPage(pageId: UUID, tx: Tx): void
   + selectByPage(pageId: UUID): List<Block>
   + selectByIds(blockIds: List<UUID>): List<Block>
   + selectNoteText(pageId: UUID): String
 }
-interface IReferenceDAO <<interface>> {
+interface IReferenceDAO {
   + batchInsert(noteId: UUID, paperIds: List<UUID>, tx: Tx): void
   + deleteByNote(noteId: UUID, tx: Tx): void
   + selectByNote(noteId: UUID): List<UUID>
 }
-interface ISearchDAO <<interface>> {
+interface ISearchDAO {
   + insertTask(kind: String, targetId: UUID, tx: Tx): void
   + deleteTask(task: IndexTask, tx: Tx): void
   + updateDocument(document: SearchDocument, terms: List<String>, tx: Tx): void
@@ -103,7 +96,6 @@ ReferenceDAO ..|> IReferenceDAO
 ' 依赖关系
 NoteUI ..> INoteController
 NoteUI ..> IPaperController
-NoteController ..> IUnitOfWork
 NoteController ..> IPageDAO
 NoteController ..> IBlockDAO
 NoteController ..> IReferenceDAO
@@ -115,6 +107,6 @@ PageDAO ..> NotePage : 使用
 BlockDAO ..> Block : 使用
 
 ' 实体关系
-Page <|-- NotePage
-NotePage "1" *-- "0..*" Block : 页内有序
+Page <|- NotePage
+NotePage "1" *- "0..*" Block : 页内有序
 @enduml

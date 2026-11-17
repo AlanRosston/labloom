@@ -1,18 +1,18 @@
 @startuml UC06 构件级类图
-!include _style.iuml
+!include _style_sample.iuml
 left to right direction
 
-interface ISearchUI <<interface>> {
+interface ISearchUI {
   + submitSearch(keyword: String, scope: String): PageResult<SearchHit>
   + changePage(page: Integer): PageResult<SearchHit>
   + openResult(hit: SearchHit): void
 }
-interface ISearchController <<interface>> {
+interface ISearchController {
   + getIndexStatus(): Result<IndexStatus>
   + rebuildIndex(): Result<IndexStatus>
   + search(input: SearchInput): Result<PageResult<SearchHit>>
 }
-interface IIndexService <<interface>> {
+interface IIndexService {
   + start(): void
   + stop(): void
   + getStatus(): IndexStatus
@@ -20,7 +20,7 @@ interface IIndexService <<interface>> {
   + processQueue(): Integer
   + tokenize(text: String): List<String>
 }
-interface ISearchDAO <<interface>> {
+interface ISearchDAO {
   + insertTask(kind: String, targetId: UUID, tx: Tx): void
   + deleteTask(task: IndexTask, tx: Tx): void
   + updateDocument(document: SearchDocument, terms: List<String>, tx: Tx): void
@@ -29,14 +29,7 @@ interface ISearchDAO <<interface>> {
   + selectCandidates(terms: List<String>, scope: String): List<SearchDocument>
   + selectStatus(): IndexStatus
 }
-interface IUnitOfWork <<interface>> {
-  + open(dbPath: String): void
-  + begin(): Tx
-  + commit(tx: Tx): void
-  + rollback(tx: Tx): void
-  + close(): void
-}
-interface IPageDAO <<interface>> {
+interface IPageDAO {
   + insert(page: Page, tx: Tx): void
   + updateNote(note: NotePage, expectedVersion: Integer, tx: Tx): Integer
   + selectById(pageId: UUID): Page
@@ -44,14 +37,14 @@ interface IPageDAO <<interface>> {
   + selectByKind(kind: String, page: Integer): PageResult<Page>
   + selectIndexInput(): List<Page>
 }
-interface IBlockDAO <<interface>> {
+interface IBlockDAO {
   + batchInsert(blocks: List<Block>, tx: Tx): void
   + deleteByPage(pageId: UUID, tx: Tx): void
   + selectByPage(pageId: UUID): List<Block>
   + selectByIds(blockIds: List<UUID>): List<Block>
   + selectNoteText(pageId: UUID): String
 }
-interface IFeedItemDAO <<interface>> {
+interface IFeedItemDAO {
   + insert(item: FeedItem, tx: Tx): void
   + updateRead(itemId: UUID, tx: Tx): void
   + selectById(itemId: UUID): FeedItem
@@ -74,7 +67,6 @@ SearchDAO ..|> ISearchDAO
 SearchUI ..> ISearchController
 SearchController ..> IIndexService
 SearchController ..> ISearchDAO
-IndexService ..> IUnitOfWork
 IndexService ..> ISearchDAO
 IndexService ..> IPageDAO
 IndexService ..> IBlockDAO

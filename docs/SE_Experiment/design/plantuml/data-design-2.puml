@@ -1,5 +1,6 @@
 @startuml 数据设计类图（页面、内容块与附件）
-!include _style.iuml
+!include _style_sample.iuml
+left to right direction
 
 ' ===== 实体类（PO） =====
 abstract class Page {
@@ -51,7 +52,7 @@ class Attachment {
 }
 
 ' ===== DAO 接口 =====
-interface IPageDAO <<interface>> {
+interface IPageDAO {
   + insert(page: Page, tx: Tx): void
   + updateNote(note: NotePage, expectedVersion: Integer, tx: Tx): Integer
   + selectById(pageId: UUID): Page
@@ -59,19 +60,19 @@ interface IPageDAO <<interface>> {
   + selectByKind(kind: String, page: Integer): PageResult<Page>
   + selectIndexInput(): List<Page>
 }
-interface IBlockDAO <<interface>> {
+interface IBlockDAO {
   + batchInsert(blocks: List<Block>, tx: Tx): void
   + deleteByPage(pageId: UUID, tx: Tx): void
   + selectByPage(pageId: UUID): List<Block>
   + selectByIds(blockIds: List<UUID>): List<Block>
   + selectNoteText(pageId: UUID): String
 }
-interface IAttachmentDAO <<interface>> {
+interface IAttachmentDAO {
   + insert(attachment: Attachment, tx: Tx): void
   + selectById(attachmentId: UUID): Attachment
   + selectByPaper(paperId: UUID): Attachment
 }
-interface IReferenceDAO <<interface>> {
+interface IReferenceDAO {
   + batchInsert(noteId: UUID, paperIds: List<UUID>, tx: Tx): void
   + deleteByNote(noteId: UUID, tx: Tx): void
   + selectByNote(noteId: UUID): List<UUID>
@@ -93,9 +94,9 @@ BlockDAO ..> Block : 使用
 AttachmentDAO ..> Attachment : 使用
 
 ' 实体关系
-Page <|-- NotePage
-Page <|-- PaperPage
-NotePage "1" *-- "0..*" Block : 页内有序
-PaperPage "1" *-- "1" Attachment
-NotePage "0..*" -- "0..*" PaperPage : 引用
+Page <|- NotePage
+Page <|- PaperPage
+NotePage "1" *- "0..*" Block : 页内有序
+PaperPage "1" *- "1" Attachment
+NotePage "0..*" - "0..*" PaperPage : 引用
 @enduml

@@ -1,59 +1,28 @@
 @startuml UC01 构件级类图
-!include _style.iuml
+!include _style_sample.iuml
 left to right direction
 
-interface IWorkspaceUI <<interface>> {
+interface IWorkspaceUI {
   + createWorkspace(name: String): Result<WorkspaceSession>
   + openWorkspace(): Result<WorkspaceSession>
   + closeWorkspace(): Result<Void>
 }
-interface IWorkspaceController <<interface>> {
+interface IWorkspaceController {
   + createWorkspace(name: String): Result<WorkspaceSession>
   + openWorkspace(): Result<WorkspaceSession>
   + closeWorkspace(): Result<Void>
 }
-interface IFileDialog <<interface>> {
-  + chooseDirectory(mode: String): Result<String>
-  + choosePDF(): Result<String>
-}
-interface IFileStore <<interface>> {
-  + checkDirectory(path: String, mode: String): Result<String>
-  + initLayout(rootPath: String): void
-  + removeLayout(rootPath: String): void
-  + backupDatabase(dbPath: String): String
-  + checkPDF(path: String): Result<Integer>
-  + prepareImport(path: String, attachmentId: UUID): ImportTicket
-  + publishImport(ticket: ImportTicket): String
-  + finishImport(ticket: ImportTicket): void
-  + rollbackImport(ticket: ImportTicket): Boolean
-  + listPendingImports(): List<ImportTicket>
-  + readAttachment(relativePath: String): Byte[]
-}
-interface IWorkspaceLock <<interface>> {
-  + acquire(rootPath: String): Result<String>
-  + release(lockHandle: String): void
-}
-interface IUnitOfWork <<interface>> {
-  + open(dbPath: String): void
-  + begin(): Tx
-  + commit(tx: Tx): void
-  + rollback(tx: Tx): void
-  + close(): void
-}
-interface IMigrationRunner <<interface>> {
-  + migrate(fromVersion: Integer): Result<Integer>
-}
-interface IWorkspaceDAO <<interface>> {
+interface IWorkspaceDAO {
   + insertMeta(workspace: Workspace, tx: Tx): void
   + selectMeta(): Workspace
   + selectSchemaVersion(): Integer
 }
-interface IAttachmentDAO <<interface>> {
+interface IAttachmentDAO {
   + insert(attachment: Attachment, tx: Tx): void
   + selectById(attachmentId: UUID): Attachment
   + selectByPaper(paperId: UUID): Attachment
 }
-interface IIndexService <<interface>> {
+interface IIndexService {
   + start(): void
   + stop(): void
   + getStatus(): IndexStatus
@@ -81,11 +50,6 @@ WorkspaceDAO ..|> IWorkspaceDAO
 
 ' 依赖关系
 WorkspaceUI ..> IWorkspaceController
-WorkspaceController ..> IFileDialog
-WorkspaceController ..> IFileStore
-WorkspaceController ..> IWorkspaceLock
-WorkspaceController ..> IUnitOfWork
-WorkspaceController ..> IMigrationRunner
 WorkspaceController ..> IWorkspaceDAO
 WorkspaceController ..> IAttachmentDAO
 WorkspaceController ..> IIndexService

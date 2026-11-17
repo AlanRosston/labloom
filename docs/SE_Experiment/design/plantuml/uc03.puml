@@ -1,5 +1,5 @@
 @startuml UC03 刷新与阅读订阅顺序图
-!include _style.iuml
+!include _style_sample.iuml
 actor 用户
 boundary FeedUI
 control RefreshController
@@ -16,19 +16,19 @@ entity FeedItem
 用户 -> FeedUI: refreshFeed(sourceId)
 FeedUI -> RefreshController: refresh(sourceId)
 RefreshController -> IFeedSourceDAO: selectAll() 或 selectById(sourceId)
-IFeedSourceDAO --> RefreshController: return sourceList
+IFeedSourceDAO -> RefreshController: return sourceList
 loop 每个订阅源
   RefreshController -> FeedSource: setStatus("REFRESHING")
   RefreshController -> IFeedGateway: fetchAndParse(url, 30000)
-  IFeedGateway --> RefreshController: return parsedFeed
+  IFeedGateway -> RefreshController: return parsedFeed
   alt 获取并解析成功
     RefreshController -> RefreshController: 规范化原文链接，无可用链接计入 skipped
     RefreshController -> IUnitOfWork: begin()
-    IUnitOfWork --> RefreshController: return tx
+    IUnitOfWork -> RefreshController: return tx
     RefreshController -> IFeedSourceDAO: selectById(sourceId)
     loop 每个候选条目
       RefreshController -> IFeedItemDAO: selectByUrl(url)
-      IFeedItemDAO --> RefreshController: return existingItem
+      IFeedItemDAO -> RefreshController: return existingItem
       alt 条目不存在
         RefreshController -> IFeedItemDAO: insert(item, tx)
         RefreshController -> ISearchDAO: insertTask("feed", itemId, tx)
@@ -49,32 +49,32 @@ loop 每个订阅源
     RefreshController -> FeedSource: setStatus("FETCH_FAILED")
   end
 end
-RefreshController --> FeedUI: return Result(success=true, data=summary)
-FeedUI --> 用户: show refreshSummary
+RefreshController -> FeedUI: return Result(success=true, data=summary)
+FeedUI -> 用户: show refreshSummary
 
 == 阅读条目 ==
 用户 -> FeedUI: openItem(itemId)
 FeedUI -> RefreshController: readItem(itemId)
 RefreshController -> IFeedItemDAO: selectById(itemId)
-IFeedItemDAO --> RefreshController: return item
+IFeedItemDAO -> RefreshController: return item
 opt 条目未读
   RefreshController -> FeedItem: markRead()
   RefreshController -> IUnitOfWork: begin()
   RefreshController -> IFeedItemDAO: updateRead(itemId, tx)
   RefreshController -> IUnitOfWork: commit(tx)
 end
-RefreshController --> FeedUI: return Result(success=true, data=item)
-FeedUI --> 用户: show itemSummary
+RefreshController -> FeedUI: return Result(success=true, data=item)
+FeedUI -> 用户: show itemSummary
 
 == 打开原文 ==
 用户 -> FeedUI: openOriginal(itemId)
 FeedUI -> RefreshController: openOriginal(itemId)
 RefreshController -> IFeedItemDAO: selectById(itemId)
-IFeedItemDAO --> RefreshController: return item
+IFeedItemDAO -> RefreshController: return item
 alt 链接为 http／https
   RefreshController -> IExternalBrowser: open(url)
-  RefreshController --> FeedUI: return Result(success=true)
+  RefreshController -> FeedUI: return Result(success=true)
 else 其他协议
-  RefreshController --> FeedUI: return Result(success=false, code=PROTOCOL_REJECTED)
+  RefreshController -> FeedUI: return Result(success=false, code=PROTOCOL_REJECTED)
 end
 @enduml

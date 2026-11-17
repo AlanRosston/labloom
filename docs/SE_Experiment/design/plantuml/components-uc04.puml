@@ -1,8 +1,8 @@
 @startuml UC04 构件级类图
-!include _style.iuml
+!include _style_sample.iuml
 left to right direction
 
-interface IPaperUI <<interface>> {
+interface IPaperUI {
   + importPDF(): Result<PaperPage>
   + queryPapers(page: Integer): PageResult<PaperPage>
   + openPaper(paperId: UUID): Result<PDFResource>
@@ -11,36 +11,12 @@ interface IPaperUI <<interface>> {
   + findText(keyword: String): Integer
   + cancelFind(): void
 }
-interface IPaperController <<interface>> {
+interface IPaperController {
   + importPDF(): Result<PaperPage>
   + listPapers(page: Integer): Result<PageResult<PaperPage>>
   + readPDF(paperId: UUID): Result<PDFResource>
 }
-interface IFileDialog <<interface>> {
-  + chooseDirectory(mode: String): Result<String>
-  + choosePDF(): Result<String>
-}
-interface IFileStore <<interface>> {
-  + checkDirectory(path: String, mode: String): Result<String>
-  + initLayout(rootPath: String): void
-  + removeLayout(rootPath: String): void
-  + backupDatabase(dbPath: String): String
-  + checkPDF(path: String): Result<Integer>
-  + prepareImport(path: String, attachmentId: UUID): ImportTicket
-  + publishImport(ticket: ImportTicket): String
-  + finishImport(ticket: ImportTicket): void
-  + rollbackImport(ticket: ImportTicket): Boolean
-  + listPendingImports(): List<ImportTicket>
-  + readAttachment(relativePath: String): Byte[]
-}
-interface IUnitOfWork <<interface>> {
-  + open(dbPath: String): void
-  + begin(): Tx
-  + commit(tx: Tx): void
-  + rollback(tx: Tx): void
-  + close(): void
-}
-interface IPageDAO <<interface>> {
+interface IPageDAO {
   + insert(page: Page, tx: Tx): void
   + updateNote(note: NotePage, expectedVersion: Integer, tx: Tx): Integer
   + selectById(pageId: UUID): Page
@@ -48,12 +24,12 @@ interface IPageDAO <<interface>> {
   + selectByKind(kind: String, page: Integer): PageResult<Page>
   + selectIndexInput(): List<Page>
 }
-interface IAttachmentDAO <<interface>> {
+interface IAttachmentDAO {
   + insert(attachment: Attachment, tx: Tx): void
   + selectById(attachmentId: UUID): Attachment
   + selectByPaper(paperId: UUID): Attachment
 }
-interface ISearchDAO <<interface>> {
+interface ISearchDAO {
   + insertTask(kind: String, targetId: UUID, tx: Tx): void
   + deleteTask(task: IndexTask, tx: Tx): void
   + updateDocument(document: SearchDocument, terms: List<String>, tx: Tx): void
@@ -103,9 +79,6 @@ AttachmentDAO ..|> IAttachmentDAO
 
 ' 依赖关系
 PaperUI ..> IPaperController
-PaperController ..> IFileDialog
-PaperController ..> IFileStore
-PaperController ..> IUnitOfWork
 PaperController ..> IPageDAO
 PaperController ..> IAttachmentDAO
 PaperController ..> ISearchDAO
@@ -116,6 +89,6 @@ PageDAO ..> PaperPage : 使用
 AttachmentDAO ..> Attachment : 使用
 
 ' 实体关系
-Page <|-- PaperPage
-PaperPage "1" *-- "1" Attachment
+Page <|- PaperPage
+PaperPage "1" *- "1" Attachment
 @enduml

@@ -1,5 +1,5 @@
 @startuml UC05 编辑与保存笔记顺序图
-!include _style.iuml
+!include _style_sample.iuml
 actor 用户
 boundary NoteUI
 control NoteController
@@ -14,13 +14,13 @@ entity NotePage
 用户 -> NoteUI: openNote(noteId)
 NoteUI -> NoteController: loadNote(noteId)
 NoteController -> IPageDAO: selectById(noteId)
-IPageDAO --> NoteController: return note
+IPageDAO -> NoteController: return note
 NoteController -> IBlockDAO: selectByPage(noteId)
-IBlockDAO --> NoteController: return blocks
+IBlockDAO -> NoteController: return blocks
 NoteController -> IReferenceDAO: selectByNote(noteId)
-IReferenceDAO --> NoteController: return paperIds
-NoteController --> NoteUI: return Result(success=true, data=snapshot)
-NoteUI --> 用户: show 笔记内容
+IReferenceDAO -> NoteController: return paperIds
+NoteController -> NoteUI: return Result(success=true, data=snapshot)
+NoteUI -> 用户: show 笔记内容
 
 == 编辑并自动保存 ==
 用户 -> NoteUI: editNote(title, blocks)／insertPaperLink(paperId)
@@ -28,18 +28,18 @@ NoteUI -> NoteUI: 停止输入满 1 秒，生成 NoteSaveInput
 NoteUI -> NoteController: saveNote(input)
 NoteController -> NoteController: 校验块类型、标识与 order，提取 paperIds
 NoteController -> IUnitOfWork: begin()
-IUnitOfWork --> NoteController: return tx
+IUnitOfWork -> NoteController: return tx
 NoteController -> IPageDAO: selectById(pageId)
-IPageDAO --> NoteController: return note
+IPageDAO -> NoteController: return note
 NoteController -> IBlockDAO: selectByIds(blockIds)
-IBlockDAO --> NoteController: return existingBlocks
+IBlockDAO -> NoteController: return existingBlocks
 NoteController -> IPageDAO: selectByIds(paperIds)
-IPageDAO --> NoteController: return papers
+IPageDAO -> NoteController: return papers
 alt 版本一致且块与引用目标有效
   NoteController -> NotePage: rename(title)
   NoteController -> NotePage: applyContent(blocks, paperIds)
   NoteController -> IPageDAO: updateNote(note, baseVersion, tx)
-  IPageDAO --> NoteController: return 1
+  IPageDAO -> NoteController: return 1
   NoteController -> IBlockDAO: deleteByPage(pageId, tx)
   NoteController -> IBlockDAO: batchInsert(blocks, tx)
   NoteController -> IReferenceDAO: deleteByNote(pageId, tx)
@@ -47,16 +47,16 @@ alt 版本一致且块与引用目标有效
   NoteController -> ISearchDAO: insertTask("note", pageId, tx)
   NoteController -> IUnitOfWork: commit(tx)
   alt 提交成功
-    NoteController --> NoteUI: return Result(success=true, data=receipt)
-    NoteUI --> 用户: show 已保存
+    NoteController -> NoteUI: return Result(success=true, data=receipt)
+    NoteUI -> 用户: show 已保存
   else 写入失败
     NoteController -> IUnitOfWork: rollback(tx)
-    NoteController --> NoteUI: return Result(success=false, code=STORAGE_FAILED)
-    NoteUI --> 用户: show 保存失败，保留草稿并提供重试
+    NoteController -> NoteUI: return Result(success=false, code=STORAGE_FAILED)
+    NoteUI -> 用户: show 保存失败，保留草稿并提供重试
   end
 else 版本冲突或校验失败
   NoteController -> IUnitOfWork: rollback(tx)
-  NoteController --> NoteUI: return Result(success=false, code=VERSION_CONFLICT／INVALID_ARGUMENT)
-  NoteUI --> 用户: show 保留草稿并显示原因
+  NoteController -> NoteUI: return Result(success=false, code=VERSION_CONFLICT／INVALID_ARGUMENT)
+  NoteUI -> 用户: show 保留草稿并显示原因
 end
 @enduml

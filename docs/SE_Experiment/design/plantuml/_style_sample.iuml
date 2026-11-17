@@ -1,0 +1,2 @@
+' 与《设计文档_格式样本》一致：使用 PlantUML 默认主题，只指定中文字体
+skinparam defaultFontName Noto Sans CJK SC
