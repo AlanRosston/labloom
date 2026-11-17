@@ -1,0 +1,95 @@
+@startuml UC01 构件级类图
+!include _style.iuml
+left to right direction
+
+interface IWorkspaceUI <<interface>> {
+  + createWorkspace(name: String): Result<WorkspaceSession>
+  + openWorkspace(): Result<WorkspaceSession>
+  + closeWorkspace(): Result<Void>
+}
+interface IWorkspaceController <<interface>> {
+  + createWorkspace(name: String): Result<WorkspaceSession>
+  + openWorkspace(): Result<WorkspaceSession>
+  + closeWorkspace(): Result<Void>
+}
+interface IFileDialog <<interface>> {
+  + chooseDirectory(mode: String): Result<String>
+  + choosePDF(): Result<String>
+}
+interface IFileStore <<interface>> {
+  + checkDirectory(path: String, mode: String): Result<String>
+  + initLayout(rootPath: String): void
+  + removeLayout(rootPath: String): void
+  + backupDatabase(dbPath: String): String
+  + checkPDF(path: String): Result<Integer>
+  + prepareImport(path: String, attachmentId: UUID): ImportTicket
+  + publishImport(ticket: ImportTicket): String
+  + finishImport(ticket: ImportTicket): void
+  + rollbackImport(ticket: ImportTicket): Boolean
+  + listPendingImports(): List<ImportTicket>
+  + readAttachment(relativePath: String): Byte[]
+}
+interface IWorkspaceLock <<interface>> {
+  + acquire(rootPath: String): Result<String>
+  + release(lockHandle: String): void
+}
+interface IUnitOfWork <<interface>> {
+  + open(dbPath: String): void
+  + begin(): Tx
+  + commit(tx: Tx): void
+  + rollback(tx: Tx): void
+  + close(): void
+}
+interface IMigrationRunner <<interface>> {
+  + migrate(fromVersion: Integer): Result<Integer>
+}
+interface IWorkspaceDAO <<interface>> {
+  + insertMeta(workspace: Workspace, tx: Tx): void
+  + selectMeta(): Workspace
+  + selectSchemaVersion(): Integer
+}
+interface IAttachmentDAO <<interface>> {
+  + insert(attachment: Attachment, tx: Tx): void
+  + selectById(attachmentId: UUID): Attachment
+  + selectByPaper(paperId: UUID): Attachment
+}
+interface IIndexService <<interface>> {
+  + start(): void
+  + stop(): void
+  + getStatus(): IndexStatus
+  + rebuild(): void
+  + processQueue(): Integer
+  + tokenize(text: String): List<String>
+}
+class WorkspaceUI
+class WorkspaceController
+class WorkspaceDAO
+class Workspace {
+  - id: UUID
+  - name: String
+  - rootPath: String
+  - schemaVersion: Integer
+  - createdAt: Timestamp
+  + rename(name: String): void
+  + getName(): String
+}
+
+' 实现关系
+WorkspaceUI ..|> IWorkspaceUI
+WorkspaceController ..|> IWorkspaceController
+WorkspaceDAO ..|> IWorkspaceDAO
+
+' 依赖关系
+WorkspaceUI ..> IWorkspaceController
+WorkspaceController ..> IFileDialog
+WorkspaceController ..> IFileStore
+WorkspaceController ..> IWorkspaceLock
+WorkspaceController ..> IUnitOfWork
+WorkspaceController ..> IMigrationRunner
+WorkspaceController ..> IWorkspaceDAO
+WorkspaceController ..> IAttachmentDAO
+WorkspaceController ..> IIndexService
+
+' DAO 与实体（使用关系）
+WorkspaceDAO ..> Workspace : 使用
+@enduml

@@ -1,39 +1,65 @@
-@startuml
+@startuml UC02 管理订阅源顺序图
 !include _style.iuml
-skinparam maxMessageSize 240
-hide footbox
-skinparam sequenceMessageAlign center
-actor 用户 as U
-boundary SourceUI as UI
-control "Source\nController" as C
-participant FeedGateway as G
-database "FeedSourceDAO\nSQLite" as DB
-U -> UI : 添加／修改／移除来源
-UI -> C : 对应来源操作
-alt 添加或修改地址
-  C -> C : 校验 http／https 协议
-  C -> DB : findByUrl(url)
-  DB --> C : 查重结果
-  alt 协议有效且地址可用
-    C -> G : fetchAndParse(url, 30000)
-    G --> C : RSS／Atom 内容或错误
-    alt 抓取解析成功
-      C -> DB : begin → insert／update → commit
-      DB --> C : 写入结果
-      C --> UI : Result<FeedSource>
-    else 抓取解析失败
-      C --> UI : 抓取或解析错误
-    end
-  else 地址无效或重复
-    C --> UI : 地址错误
+actor 用户
+boundary SourceUI
+control SourceController
+participant IFeedGateway
+participant IUnitOfWork
+participant IFeedSourceDAO
+entity FeedSource
+
+== 添加订阅源 ==
+用户 -> SourceUI: addSource(name, url)
+SourceUI -> SourceController: addSource(input)
+SourceController -> SourceController: 校验名称与 http／https 协议
+SourceController -> IFeedSourceDAO: selectByUrl(url)
+IFeedSourceDAO --> SourceController: return existingSource
+alt 协议无效或地址重复
+  SourceController --> SourceUI: return Result(success=false, code=PROTOCOL_REJECTED／SOURCE_DUPLICATE)
+else 地址可用
+  SourceController -> IFeedGateway: fetchAndParse(url, 30000)
+  IFeedGateway --> SourceController: return parsedFeed
+  alt 获取并解析成功
+    SourceController -> FeedSource: new FeedSource(name, url)
+    SourceController -> IUnitOfWork: begin()
+    IUnitOfWork --> SourceController: return tx
+    SourceController -> IFeedSourceDAO: insert(source, tx)
+    SourceController -> IUnitOfWork: commit(tx)
+    SourceController --> SourceUI: return Result(success=true, data=source)
+  else 获取或解析失败
+    SourceController --> SourceUI: return Result(success=false, code=NETWORK_TIMEOUT／NETWORK_FAILED／FEED_INVALID)
   end
-else 仅修改名称
-  C -> DB : begin → update(source, tx) → commit
-  C --> UI : Result<FeedSource>
-else 移除来源
-  C -> DB : begin → delete → commit
-  DB -> DB : 条目 source_id SET NULL\n保留来源快照和阅读状态
-  C --> UI : Result<Void>
 end
-UI --> U : 更新来源列表或显示错误
+SourceUI --> 用户: show sourceList
+
+== 修改订阅源 ==
+用户 -> SourceUI: editSource(sourceId, name, url)
+SourceUI -> SourceController: updateSource(sourceId, input)
+SourceController -> IFeedSourceDAO: selectById(sourceId)
+IFeedSourceDAO --> SourceController: return source
+opt 地址发生变化
+  SourceController -> IFeedSourceDAO: selectByUrl(url)
+  SourceController -> IFeedGateway: fetchAndParse(url, 30000)
+  IFeedGateway --> SourceController: return parsedFeed
+  SourceController -> FeedSource: changeUrl(url)
+end
+opt 名称发生变化
+  SourceController -> FeedSource: rename(name)
+end
+SourceController -> IUnitOfWork: begin()
+SourceController -> IFeedSourceDAO: update(source, tx)
+SourceController -> IUnitOfWork: commit(tx)
+SourceController --> SourceUI: return Result(success=true, data=source)
+SourceUI --> 用户: show sourceList
+
+== 移除订阅源 ==
+用户 -> SourceUI: removeSource(sourceId)
+SourceUI -> SourceUI: 显示确认对话框
+SourceUI -> SourceController: removeSource(sourceId)
+SourceController -> IUnitOfWork: begin()
+SourceController -> IFeedSourceDAO: delete(sourceId, tx)
+note right of IFeedSourceDAO: feed_items.source_id 置空\n保留 source_name 与 is_read
+SourceController -> IUnitOfWork: commit(tx)
+SourceController --> SourceUI: return Result(success=true)
+SourceUI --> 用户: show sourceList
 @enduml

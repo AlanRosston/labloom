@@ -1,21 +1,14 @@
-@startuml
+@startuml NotePage 保存状态图
 !include _style.iuml
 hide empty description
-top to bottom direction
-skinparam nodesep 60
-skinparam ranksep 60
-state "已保存" as Saved
-state "编辑中" as Editing
-state "保存中" as Saving
-state "保存失败" as Failed
-[*] --> Saved : 创建／读取成功
-Saved -right-> Editing : 用户输入\n／更新草稿批次
-Editing : 持续输入／重置静默计时
-Editing -right-> Saving : 静默满 1 秒或退出\n／提交当前快照
-Saving : 新输入／更新待提交草稿
-Saving -[norank]-> Saved : \n成功且当前批次已全部确认\n／更新 savedRevision
-Saving -[norank]-> Editing : 成功且有后续编辑\n／更新版本、安排下一批
-Saving -down-> Failed : 失败／保留草稿
-Failed -[norank]-> Saving : 用户重试\n／提交当前快照
-Failed -[norank]-> Editing : 继续编辑\n／更新草稿
+[*] --> EDITING: 新建或打开笔记
+EDITING --> EDITING: 继续输入，重置静默计时
+EDITING --> SAVING: 停止输入满 1 秒或退出应用
+SAVING --> SAVED: 保存成功，当前批次已确认
+SAVING --> EDITING: 保存成功，保存期间有新输入
+SAVING --> SAVE_FAILED: 保存失败，保留草稿
+SAVED --> EDITING: 继续编辑
+SAVE_FAILED --> SAVING: 用户重试
+SAVE_FAILED --> EDITING: 继续编辑
+SAVED --> [*]: 关闭笔记
 @enduml

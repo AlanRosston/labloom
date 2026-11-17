@@ -1,15 +1,11 @@
-@startuml
+@startuml FeedSource 状态图
 !include _style.iuml
 hide empty description
-top to bottom direction
-skinparam nodesep 60
-skinparam ranksep 60
-state "正常" as Ready
-state "刷新中" as Refreshing
-state "抓取失败" as Failed
-[*] --> Ready : 来源添加\n／读取成功
-Ready -right-> Refreshing : 用户发起刷新
-Refreshing -[norank]-> Ready : 提交成功\n／更新条目与刷新时间
-Refreshing -down-> Failed : 抓取、解析或写入失败\n／回滚本源事务、记录原因
-Failed -[norank]-> Refreshing : 用户手动重试
+[*] --> NORMAL: 添加来源成功或打开工作区
+NORMAL --> REFRESHING: 用户刷新
+REFRESHING --> NORMAL: 获取并写入成功
+REFRESHING --> FETCH_FAILED: 获取、解析或写入失败
+FETCH_FAILED --> REFRESHING: 用户手动重试
+NORMAL --> [*]: 移除来源
+FETCH_FAILED --> [*]: 移除来源
 @enduml

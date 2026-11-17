@@ -1,0 +1,82 @@
+@startuml UC06 构件级类图
+!include _style.iuml
+left to right direction
+
+interface ISearchUI <<interface>> {
+  + submitSearch(keyword: String, scope: String): PageResult<SearchHit>
+  + changePage(page: Integer): PageResult<SearchHit>
+  + openResult(hit: SearchHit): void
+}
+interface ISearchController <<interface>> {
+  + getIndexStatus(): Result<IndexStatus>
+  + rebuildIndex(): Result<IndexStatus>
+  + search(input: SearchInput): Result<PageResult<SearchHit>>
+}
+interface IIndexService <<interface>> {
+  + start(): void
+  + stop(): void
+  + getStatus(): IndexStatus
+  + rebuild(): void
+  + processQueue(): Integer
+  + tokenize(text: String): List<String>
+}
+interface ISearchDAO <<interface>> {
+  + insertTask(kind: String, targetId: UUID, tx: Tx): void
+  + deleteTask(task: IndexTask, tx: Tx): void
+  + updateDocument(document: SearchDocument, terms: List<String>, tx: Tx): void
+  + updateStatus(status: String, errorCode: String, tx: Tx): void
+  + selectPendingTasks(limit: Integer): List<IndexTask>
+  + selectCandidates(terms: List<String>, scope: String): List<SearchDocument>
+  + selectStatus(): IndexStatus
+}
+interface IUnitOfWork <<interface>> {
+  + open(dbPath: String): void
+  + begin(): Tx
+  + commit(tx: Tx): void
+  + rollback(tx: Tx): void
+  + close(): void
+}
+interface IPageDAO <<interface>> {
+  + insert(page: Page, tx: Tx): void
+  + updateNote(note: NotePage, expectedVersion: Integer, tx: Tx): Integer
+  + selectById(pageId: UUID): Page
+  + selectByIds(pageIds: List<UUID>): List<Page>
+  + selectByKind(kind: String, page: Integer): PageResult<Page>
+  + selectIndexInput(): List<Page>
+}
+interface IBlockDAO <<interface>> {
+  + batchInsert(blocks: List<Block>, tx: Tx): void
+  + deleteByPage(pageId: UUID, tx: Tx): void
+  + selectByPage(pageId: UUID): List<Block>
+  + selectByIds(blockIds: List<UUID>): List<Block>
+  + selectNoteText(pageId: UUID): String
+}
+interface IFeedItemDAO <<interface>> {
+  + insert(item: FeedItem, tx: Tx): void
+  + updateRead(itemId: UUID, tx: Tx): void
+  + selectById(itemId: UUID): FeedItem
+  + selectByUrl(url: String): FeedItem
+  + selectPage(filter: FeedFilter, page: Integer): PageResult<FeedItem>
+  + selectIndexInput(): List<FeedItem>
+}
+class SearchUI
+class SearchController
+class IndexService
+class SearchDAO
+
+' 实现关系
+SearchUI ..|> ISearchUI
+SearchController ..|> ISearchController
+IndexService ..|> IIndexService
+SearchDAO ..|> ISearchDAO
+
+' 依赖关系
+SearchUI ..> ISearchController
+SearchController ..> IIndexService
+SearchController ..> ISearchDAO
+IndexService ..> IUnitOfWork
+IndexService ..> ISearchDAO
+IndexService ..> IPageDAO
+IndexService ..> IBlockDAO
+IndexService ..> IFeedItemDAO
+@enduml

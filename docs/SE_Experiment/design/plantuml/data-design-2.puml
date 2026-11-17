@@ -1,0 +1,101 @@
+@startuml 数据设计类图（页面、内容块与附件）
+!include _style.iuml
+
+' ===== 实体类（PO） =====
+abstract class Page {
+  - id: UUID
+  - kind: String
+  - title: String
+  - createdAt: Timestamp
+  - updatedAt: Timestamp
+  - version: Integer
+  + rename(title: String): void
+  + getKind(): String
+  + getVersion(): Integer
+}
+class NotePage {
+  - blocks: List<Block>
+  - paperIds: List<UUID>
+  - saveStatus: String
+  + applyContent(blocks: List<Block>, paperIds: List<UUID>): void
+  + getBlocks(): List<Block>
+  + getPaperIds(): List<UUID>
+  + getSaveStatus(): String
+  + setSaveStatus(status: String): void
+}
+class PaperPage {
+  - authors: String
+  - doi: String
+  - attachmentId: UUID
+  + bindAttachment(attachmentId: UUID): void
+  + getAttachmentId(): UUID
+}
+class Block {
+  - id: UUID
+  - pageId: UUID
+  - order: Integer
+  - type: String
+  - content: JSON
+  + changeContent(type: String, content: JSON): void
+  + moveTo(order: Integer): void
+}
+class Attachment {
+  - id: UUID
+  - paperId: UUID
+  - relativePath: String
+  - originalName: String
+  - size: Integer
+  - mediaType: String
+  + getRelativePath(): String
+  + getSize(): Integer
+}
+
+' ===== DAO 接口 =====
+interface IPageDAO <<interface>> {
+  + insert(page: Page, tx: Tx): void
+  + updateNote(note: NotePage, expectedVersion: Integer, tx: Tx): Integer
+  + selectById(pageId: UUID): Page
+  + selectByIds(pageIds: List<UUID>): List<Page>
+  + selectByKind(kind: String, page: Integer): PageResult<Page>
+  + selectIndexInput(): List<Page>
+}
+interface IBlockDAO <<interface>> {
+  + batchInsert(blocks: List<Block>, tx: Tx): void
+  + deleteByPage(pageId: UUID, tx: Tx): void
+  + selectByPage(pageId: UUID): List<Block>
+  + selectByIds(blockIds: List<UUID>): List<Block>
+  + selectNoteText(pageId: UUID): String
+}
+interface IAttachmentDAO <<interface>> {
+  + insert(attachment: Attachment, tx: Tx): void
+  + selectById(attachmentId: UUID): Attachment
+  + selectByPaper(paperId: UUID): Attachment
+}
+interface IReferenceDAO <<interface>> {
+  + batchInsert(noteId: UUID, paperIds: List<UUID>, tx: Tx): void
+  + deleteByNote(noteId: UUID, tx: Tx): void
+  + selectByNote(noteId: UUID): List<UUID>
+}
+
+' ===== DAO 实现 =====
+class PageDAO
+class BlockDAO
+class AttachmentDAO
+class ReferenceDAO
+PageDAO ..|> IPageDAO
+BlockDAO ..|> IBlockDAO
+AttachmentDAO ..|> IAttachmentDAO
+ReferenceDAO ..|> IReferenceDAO
+PageDAO ..> Page : 使用
+PageDAO ..> NotePage : 使用
+PageDAO ..> PaperPage : 使用
+BlockDAO ..> Block : 使用
+AttachmentDAO ..> Attachment : 使用
+
+' 实体关系
+Page <|-- NotePage
+Page <|-- PaperPage
+NotePage "1" *-- "0..*" Block : 页内有序
+PaperPage "1" *-- "1" Attachment
+NotePage "0..*" -- "0..*" PaperPage : 引用
+@enduml

@@ -1,38 +1,42 @@
-@startuml
+@startuml UC06 检索资料顺序图
 !include _style.iuml
-skinparam maxMessageSize 240
-hide footbox
-skinparam sequenceMessageAlign center
-actor 用户 as U
-boundary SearchUI as UI
-control "Search\nController" as C
-participant IndexService as I
-database "SearchDAO\nSQLite" as DB
-U -> UI : 输入关键词与范围
-UI -> C : search(input)
-C -> I : getStatus()
-I --> C : 索引状态
+actor 用户
+boundary SearchUI
+control SearchController
+participant IIndexService
+participant ISearchDAO
+boundary "NoteUI／PaperUI／FeedUI" as TargetUI
+
+用户 -> SearchUI: submitSearch(keyword, scope)
+SearchUI -> SearchController: search(input)
+SearchController -> SearchController: 校验 keyword、scope、page
+SearchController -> IIndexService: getStatus()
+IIndexService --> SearchController: return indexStatus
 alt READY
-  alt 首次查询
-    C -> DB : 规范化、分词、取得词项候选
-    DB --> C : 候选对象及检索文本
-    C -> C : 核对文本、生成片段、排序\n创建 queryId 与结果快照
-  else 使用 queryId 翻页
-    C -> C : 校验 queryId、关键词和范围
+  alt queryId 为空（首次查询）
+    SearchController -> IIndexService: tokenize(keyword)
+    IIndexService --> SearchController: return terms
+    SearchController -> ISearchDAO: selectCandidates(terms, scope)
+    ISearchDAO --> SearchController: return documentList
+    SearchController -> SearchController: 核对完整关键词，生成片段\n按类型分组排序，保存 queryId 快照
+  else queryId 非空（翻页）
+    SearchController -> SearchController: 核对 queryId、keyword 与 scope
   end
-  alt 结果快照有效
-    C --> UI : 指定页最多 50 条结果与 hasMore
-    UI --> U : 分类结果
-    U -> UI : 选择结果
-    UI -> UI : 交给 NoteUI／PaperUI／FeedUI 打开
+  alt 快照有效
+    SearchController --> SearchUI: return Result(success=true, data=pageResult)
+    SearchUI --> 用户: show 分类结果与匹配片段
+    用户 -> SearchUI: openResult(hit)
+    SearchUI -> TargetUI: 按 kind 打开 targetId
+    TargetUI --> 用户: show 目标笔记、文献或条目
   else 快照失效
-    C --> UI : QUERY_EXPIRED
+    SearchController --> SearchUI: return Result(success=false, code=QUERY_EXPIRED)
+    SearchUI --> 用户: show 重新检索提示
   end
 else BUILDING
-  C --> UI : INDEX_NOT_READY
-  UI --> U : 构建进度
+  SearchController --> SearchUI: return Result(success=false, code=INDEX_NOT_READY)
+  SearchUI --> 用户: show 索引构建进度
 else FAILED
-  C --> UI : INDEX_FAILED
-  UI --> U : 重建入口
+  SearchController --> SearchUI: return Result(success=false, code=INDEX_FAILED)
+  SearchUI --> 用户: show 重建索引入口
 end
 @enduml

@@ -1,0 +1,120 @@
+@startuml UC05 构件级类图
+!include _style.iuml
+left to right direction
+
+interface INoteUI <<interface>> {
+  + createNote(title: String): Result<NoteSnapshot>
+  + queryNotes(page: Integer): PageResult<NotePage>
+  + openNote(noteId: UUID): Result<NoteSnapshot>
+  + editNote(title: String, blocks: List<Block>): void
+  + insertPaperLink(paperId: UUID): void
+  + retrySave(): Result<SaveReceipt>
+}
+interface INoteController <<interface>> {
+  + createNote(title: String): Result<NoteSnapshot>
+  + listNotes(page: Integer): Result<PageResult<NotePage>>
+  + loadNote(noteId: UUID): Result<NoteSnapshot>
+  + saveNote(input: NoteSaveInput): Result<SaveReceipt>
+}
+interface IPaperController <<interface>> {
+  + importPDF(): Result<PaperPage>
+  + listPapers(page: Integer): Result<PageResult<PaperPage>>
+  + readPDF(paperId: UUID): Result<PDFResource>
+}
+interface IUnitOfWork <<interface>> {
+  + open(dbPath: String): void
+  + begin(): Tx
+  + commit(tx: Tx): void
+  + rollback(tx: Tx): void
+  + close(): void
+}
+interface IPageDAO <<interface>> {
+  + insert(page: Page, tx: Tx): void
+  + updateNote(note: NotePage, expectedVersion: Integer, tx: Tx): Integer
+  + selectById(pageId: UUID): Page
+  + selectByIds(pageIds: List<UUID>): List<Page>
+  + selectByKind(kind: String, page: Integer): PageResult<Page>
+  + selectIndexInput(): List<Page>
+}
+interface IBlockDAO <<interface>> {
+  + batchInsert(blocks: List<Block>, tx: Tx): void
+  + deleteByPage(pageId: UUID, tx: Tx): void
+  + selectByPage(pageId: UUID): List<Block>
+  + selectByIds(blockIds: List<UUID>): List<Block>
+  + selectNoteText(pageId: UUID): String
+}
+interface IReferenceDAO <<interface>> {
+  + batchInsert(noteId: UUID, paperIds: List<UUID>, tx: Tx): void
+  + deleteByNote(noteId: UUID, tx: Tx): void
+  + selectByNote(noteId: UUID): List<UUID>
+}
+interface ISearchDAO <<interface>> {
+  + insertTask(kind: String, targetId: UUID, tx: Tx): void
+  + deleteTask(task: IndexTask, tx: Tx): void
+  + updateDocument(document: SearchDocument, terms: List<String>, tx: Tx): void
+  + updateStatus(status: String, errorCode: String, tx: Tx): void
+  + selectPendingTasks(limit: Integer): List<IndexTask>
+  + selectCandidates(terms: List<String>, scope: String): List<SearchDocument>
+  + selectStatus(): IndexStatus
+}
+class NoteUI
+class NoteController
+class PageDAO
+class BlockDAO
+class ReferenceDAO
+abstract class Page {
+  - id: UUID
+  - kind: String
+  - title: String
+  - createdAt: Timestamp
+  - updatedAt: Timestamp
+  - version: Integer
+  + rename(title: String): void
+  + getKind(): String
+  + getVersion(): Integer
+}
+class NotePage {
+  - blocks: List<Block>
+  - paperIds: List<UUID>
+  - saveStatus: String
+  + applyContent(blocks: List<Block>, paperIds: List<UUID>): void
+  + getBlocks(): List<Block>
+  + getPaperIds(): List<UUID>
+  + getSaveStatus(): String
+  + setSaveStatus(status: String): void
+}
+class Block {
+  - id: UUID
+  - pageId: UUID
+  - order: Integer
+  - type: String
+  - content: JSON
+  + changeContent(type: String, content: JSON): void
+  + moveTo(order: Integer): void
+}
+
+' 实现关系
+NoteUI ..|> INoteUI
+NoteController ..|> INoteController
+PageDAO ..|> IPageDAO
+BlockDAO ..|> IBlockDAO
+ReferenceDAO ..|> IReferenceDAO
+
+' 依赖关系
+NoteUI ..> INoteController
+NoteUI ..> IPaperController
+NoteController ..> IUnitOfWork
+NoteController ..> IPageDAO
+NoteController ..> IBlockDAO
+NoteController ..> IReferenceDAO
+NoteController ..> ISearchDAO
+
+' DAO 与实体（使用关系）
+PageDAO ..> Page : 使用
+PageDAO ..> NotePage : 使用
+BlockDAO ..> Block : 使用
+
+' 实体关系
+Page <|-- NotePage
+NotePage "1" *-- "0..*" Block : 页内有序
+@enduml
