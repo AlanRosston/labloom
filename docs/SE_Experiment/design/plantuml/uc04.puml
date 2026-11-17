@@ -3,9 +3,6 @@
 actor 用户
 boundary PaperUI
 control PaperController
-participant IFileDialog
-participant IFileStore
-participant IUnitOfWork
 participant IPageDAO
 participant IAttachmentDAO
 participant ISearchDAO
@@ -14,36 +11,34 @@ entity Attachment
 
 == 导入 PDF ==
 用户 -> PaperUI: importPDF()
-PaperUI -> PaperController: importPDF()
-PaperController -> IFileDialog: choosePDF()
-IFileDialog -> PaperController: return path
+PaperUI -> PaperUI: 显示文件选择窗口
 alt 用户取消选择
-  PaperController -> PaperUI: return Result(success=false, code=CANCELLED)
+  PaperUI -> PaperUI: 返回 Result(success=false, code=CANCELLED)
 else 已选择文件
-  PaperController -> IFileStore: checkPDF(path)
-  IFileStore -> PaperController: return size
+  PaperUI -> PaperController: importPDF(path)
+  PaperController -> IAttachmentDAO: checkFile(path)
+  IAttachmentDAO -> PaperController: return size
   alt 文件不可读、格式无效或空间不足
     PaperController -> PaperUI: return Result(success=false, code=PDF_INVALID／FILE_UNAVAILABLE／DISK_FULL)
   else 检查通过
     PaperController -> PaperPage: new PaperPage(title)
     PaperController -> Attachment: new Attachment(paperId, originalName, size)
     PaperController -> PaperPage: bindAttachment(attachmentId)
-    PaperController -> IFileStore: prepareImport(path, attachmentId)
-    IFileStore -> PaperController: return ticket
-    PaperController -> IFileStore: publishImport(ticket)
-    IFileStore -> PaperController: return relativePath
-    PaperController -> IUnitOfWork: begin()
-    IUnitOfWork -> PaperController: return tx
-    PaperController -> IPageDAO: insert(paper, tx)
-    PaperController -> IAttachmentDAO: insert(attachment, tx)
-    PaperController -> ISearchDAO: insertTask("paper", paperId, tx)
-    PaperController -> IUnitOfWork: commit(tx)
-    alt 提交成功
-      PaperController -> IFileStore: finishImport(ticket)
+    PaperController -> IAttachmentDAO: prepareImport(path, attachmentId)
+    IAttachmentDAO -> PaperController: return ticket
+    PaperController -> IAttachmentDAO: publishImport(ticket)
+    IAttachmentDAO -> PaperController: return relativePath
+    PaperController -> PaperController: 开启事务
+    PaperController -> IPageDAO: insert(paper)
+    PaperController -> IAttachmentDAO: insert(attachment)
+    PaperController -> ISearchDAO: insertTask("paper", paperId)
+    alt 写入成功
+      PaperController -> PaperController: 提交事务
+      PaperController -> IAttachmentDAO: finishImport(ticket)
       PaperController -> PaperUI: return Result(success=true, data=paper)
     else 文件或数据库操作失败
-      PaperController -> IUnitOfWork: rollback(tx)
-      PaperController -> IFileStore: rollbackImport(ticket)
+      PaperController -> PaperController: 回滚事务
+      PaperController -> IAttachmentDAO: rollbackImport(ticket)
       PaperController -> PaperUI: return Result(success=false, code=STORAGE_FAILED／DISK_FULL)
     end
   end
@@ -55,8 +50,8 @@ PaperUI -> 用户: show paperList
 PaperUI -> PaperController: readPDF(paperId)
 PaperController -> IAttachmentDAO: selectByPaper(paperId)
 IAttachmentDAO -> PaperController: return attachment
-PaperController -> IFileStore: readAttachment(relativePath)
-IFileStore -> PaperController: return bytes
+PaperController -> IAttachmentDAO: readFile(relativePath)
+IAttachmentDAO -> PaperController: return bytes
 alt 附件可读
   PaperController -> PaperUI: return Result(success=true, data=pdfResource)
   PaperUI -> 用户: show 首屏页面（加密文件先输入密码）

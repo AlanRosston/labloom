@@ -12,28 +12,35 @@ interface IPaperUI {
   + cancelFind(): void
 }
 interface IPaperController {
-  + importPDF(): Result<PaperPage>
+  + importPDF(path: String): Result<PaperPage>
   + listPapers(page: Integer): Result<PageResult<PaperPage>>
   + readPDF(paperId: UUID): Result<PDFResource>
 }
 interface IPageDAO {
-  + insert(page: Page, tx: Tx): void
-  + updateNote(note: NotePage, expectedVersion: Integer, tx: Tx): Integer
+  + insert(page: Page): void
+  + updateNote(note: NotePage, expectedVersion: Integer): Integer
   + selectById(pageId: UUID): Page
   + selectByIds(pageIds: List<UUID>): List<Page>
   + selectByKind(kind: String, page: Integer): PageResult<Page>
   + selectIndexInput(): List<Page>
 }
 interface IAttachmentDAO {
-  + insert(attachment: Attachment, tx: Tx): void
+  + insert(attachment: Attachment): void
   + selectById(attachmentId: UUID): Attachment
   + selectByPaper(paperId: UUID): Attachment
+  + checkFile(path: String): Result<Integer>
+  + prepareImport(path: String, attachmentId: UUID): ImportTicket
+  + publishImport(ticket: ImportTicket): String
+  + finishImport(ticket: ImportTicket): void
+  + rollbackImport(ticket: ImportTicket): Boolean
+  + selectPendingImports(): List<ImportTicket>
+  + readFile(relativePath: String): Byte[]
 }
 interface ISearchDAO {
-  + insertTask(kind: String, targetId: UUID, tx: Tx): void
-  + deleteTask(task: IndexTask, tx: Tx): void
-  + updateDocument(document: SearchDocument, terms: List<String>, tx: Tx): void
-  + updateStatus(status: String, errorCode: String, tx: Tx): void
+  + insertTask(kind: String, targetId: UUID): void
+  + deleteTask(task: IndexTask): void
+  + updateDocument(document: SearchDocument, terms: List<String>): void
+  + updateStatus(status: String, errorCode: String): void
   + selectPendingTasks(limit: Integer): List<IndexTask>
   + selectCandidates(terms: List<String>, scope: String): List<SearchDocument>
   + selectStatus(): IndexStatus

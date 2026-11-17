@@ -3,12 +3,9 @@
 actor 用户
 boundary FeedUI
 control RefreshController
-participant IFeedGateway
-participant IUnitOfWork
 participant IFeedSourceDAO
 participant IFeedItemDAO
 participant ISearchDAO
-participant IExternalBrowser
 entity FeedSource
 entity FeedItem
 
@@ -19,30 +16,29 @@ RefreshController -> IFeedSourceDAO: selectAll() 或 selectById(sourceId)
 IFeedSourceDAO -> RefreshController: return sourceList
 loop 每个订阅源
   RefreshController -> FeedSource: setStatus("REFRESHING")
-  RefreshController -> IFeedGateway: fetchAndParse(url, 30000)
-  IFeedGateway -> RefreshController: return parsedFeed
+  RefreshController -> IFeedSourceDAO: fetchFeed(url, 30000)
+  IFeedSourceDAO -> RefreshController: return parsedFeed
   alt 获取并解析成功
     RefreshController -> RefreshController: 规范化原文链接，无可用链接计入 skipped
-    RefreshController -> IUnitOfWork: begin()
-    IUnitOfWork -> RefreshController: return tx
+    RefreshController -> RefreshController: 开启事务
     RefreshController -> IFeedSourceDAO: selectById(sourceId)
     loop 每个候选条目
       RefreshController -> IFeedItemDAO: selectByUrl(url)
       IFeedItemDAO -> RefreshController: return existingItem
       alt 条目不存在
-        RefreshController -> IFeedItemDAO: insert(item, tx)
-        RefreshController -> ISearchDAO: insertTask("feed", itemId, tx)
+        RefreshController -> IFeedItemDAO: insert(item)
+        RefreshController -> ISearchDAO: insertTask("feed", itemId)
       else 条目已存在
         RefreshController -> RefreshController: 计入 duplicate
       end
     end
     RefreshController -> FeedSource: recordRefresh(now)
-    RefreshController -> IFeedSourceDAO: updateRefreshTime(sourceId, now, tx)
-    RefreshController -> IUnitOfWork: commit(tx)
-    alt 提交成功
+    RefreshController -> IFeedSourceDAO: updateRefreshTime(sourceId, now)
+    alt 写入成功
+      RefreshController -> RefreshController: 提交事务
       RefreshController -> FeedSource: setStatus("NORMAL")
     else 写入失败
-      RefreshController -> IUnitOfWork: rollback(tx)
+      RefreshController -> RefreshController: 回滚事务
       RefreshController -> FeedSource: setStatus("FETCH_FAILED")
     end
   else 获取或解析失败
@@ -59,9 +55,7 @@ RefreshController -> IFeedItemDAO: selectById(itemId)
 IFeedItemDAO -> RefreshController: return item
 opt 条目未读
   RefreshController -> FeedItem: markRead()
-  RefreshController -> IUnitOfWork: begin()
-  RefreshController -> IFeedItemDAO: updateRead(itemId, tx)
-  RefreshController -> IUnitOfWork: commit(tx)
+  RefreshController -> IFeedItemDAO: updateRead(itemId)
 end
 RefreshController -> FeedUI: return Result(success=true, data=item)
 FeedUI -> 用户: show itemSummary
@@ -72,9 +66,10 @@ FeedUI -> RefreshController: openOriginal(itemId)
 RefreshController -> IFeedItemDAO: selectById(itemId)
 IFeedItemDAO -> RefreshController: return item
 alt 链接为 http／https
-  RefreshController -> IExternalBrowser: open(url)
-  RefreshController -> FeedUI: return Result(success=true)
+  RefreshController -> FeedUI: return Result(success=true, data=url)
+  FeedUI -> FeedUI: 在系统默认浏览器中打开原文
 else 其他协议
   RefreshController -> FeedUI: return Result(success=false, code=PROTOCOL_REJECTED)
+  FeedUI -> 用户: show 错误提示
 end
 @enduml

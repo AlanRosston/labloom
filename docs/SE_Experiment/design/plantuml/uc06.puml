@@ -3,32 +3,32 @@
 actor 用户
 boundary SearchUI
 control SearchController
-participant IIndexService
+participant IIndexController
 participant ISearchDAO
 boundary "NoteUI／PaperUI／FeedUI" as TargetUI
 
 用户 -> SearchUI: submitSearch(keyword, scope)
 SearchUI -> SearchController: search(input)
 SearchController -> SearchController: 校验 keyword、scope、page
-SearchController -> IIndexService: getStatus()
-IIndexService -> SearchController: return indexStatus
+SearchController -> IIndexController: getStatus()
+IIndexController -> SearchController: return indexStatus
 alt READY
   alt queryId 为空（首次查询）
-    SearchController -> IIndexService: tokenize(keyword)
-    IIndexService -> SearchController: return terms
+    SearchController -> IIndexController: tokenize(keyword)
+    IIndexController -> SearchController: return terms
     SearchController -> ISearchDAO: selectCandidates(terms, scope)
     ISearchDAO -> SearchController: return documentList
-    SearchController -> SearchController: 核对完整关键词，生成片段\n按类型分组排序，保存 queryId 快照
+    SearchController -> SearchController: 核对完整关键词，生成片段\n按类型分组排序，保存 queryId 对应的有序结果
   else queryId 非空（翻页）
     SearchController -> SearchController: 核对 queryId、keyword 与 scope
   end
-  alt 快照有效
+  alt 查询结果有效
     SearchController -> SearchUI: return Result(success=true, data=pageResult)
     SearchUI -> 用户: show 分类结果与匹配片段
     用户 -> SearchUI: openResult(hit)
     SearchUI -> TargetUI: 按 kind 打开 targetId
     TargetUI -> 用户: show 目标笔记、文献或条目
-  else 快照失效
+  else 查询结果已失效
     SearchController -> SearchUI: return Result(success=false, code=QUERY_EXPIRED)
     SearchUI -> 用户: show 重新检索提示
   end

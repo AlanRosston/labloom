@@ -24,30 +24,31 @@ interface IRefreshController {
   + refresh(sourceId: UUID): Result<RefreshSummary>
   + listItems(filter: FeedFilter, page: Integer): Result<PageResult<FeedItem>>
   + readItem(itemId: UUID): Result<FeedItem>
-  + openOriginal(itemId: UUID): Result<Void>
+  + openOriginal(itemId: UUID): Result<String>
 }
 interface IFeedSourceDAO {
-  + insert(source: FeedSource, tx: Tx): void
-  + update(source: FeedSource, tx: Tx): void
-  + updateRefreshTime(sourceId: UUID, time: Timestamp, tx: Tx): void
-  + delete(sourceId: UUID, tx: Tx): void
+  + insert(source: FeedSource): void
+  + update(source: FeedSource): void
+  + updateRefreshTime(sourceId: UUID, time: Timestamp): void
+  + delete(sourceId: UUID): void
   + selectAll(): List<FeedSource>
   + selectById(sourceId: UUID): FeedSource
   + selectByUrl(url: String): FeedSource
+  + fetchFeed(url: String, timeoutMs: Integer): Result<ParsedFeed>
 }
 interface IFeedItemDAO {
-  + insert(item: FeedItem, tx: Tx): void
-  + updateRead(itemId: UUID, tx: Tx): void
+  + insert(item: FeedItem): void
+  + updateRead(itemId: UUID): void
   + selectById(itemId: UUID): FeedItem
   + selectByUrl(url: String): FeedItem
   + selectPage(filter: FeedFilter, page: Integer): PageResult<FeedItem>
   + selectIndexInput(): List<FeedItem>
 }
 interface ISearchDAO {
-  + insertTask(kind: String, targetId: UUID, tx: Tx): void
-  + deleteTask(task: IndexTask, tx: Tx): void
-  + updateDocument(document: SearchDocument, terms: List<String>, tx: Tx): void
-  + updateStatus(status: String, errorCode: String, tx: Tx): void
+  + insertTask(kind: String, targetId: UUID): void
+  + deleteTask(task: IndexTask): void
+  + updateDocument(document: SearchDocument, terms: List<String>): void
+  + updateStatus(status: String, errorCode: String): void
   + selectPendingTasks(limit: Integer): List<IndexTask>
   + selectCandidates(terms: List<String>, scope: String): List<SearchDocument>
   + selectStatus(): IndexStatus

@@ -3,7 +3,6 @@
 actor 用户
 boundary NoteUI
 control NoteController
-participant IUnitOfWork
 participant IPageDAO
 participant IBlockDAO
 participant IReferenceDAO
@@ -27,8 +26,7 @@ NoteUI -> 用户: show 笔记内容
 NoteUI -> NoteUI: 停止输入满 1 秒，生成 NoteSaveInput
 NoteUI -> NoteController: saveNote(input)
 NoteController -> NoteController: 校验块类型、标识与 order，提取 paperIds
-NoteController -> IUnitOfWork: begin()
-IUnitOfWork -> NoteController: return tx
+NoteController -> NoteController: 开启事务
 NoteController -> IPageDAO: selectById(pageId)
 IPageDAO -> NoteController: return note
 NoteController -> IBlockDAO: selectByIds(blockIds)
@@ -38,24 +36,24 @@ IPageDAO -> NoteController: return papers
 alt 版本一致且块与引用目标有效
   NoteController -> NotePage: rename(title)
   NoteController -> NotePage: applyContent(blocks, paperIds)
-  NoteController -> IPageDAO: updateNote(note, baseVersion, tx)
+  NoteController -> IPageDAO: updateNote(note, baseVersion)
   IPageDAO -> NoteController: return 1
-  NoteController -> IBlockDAO: deleteByPage(pageId, tx)
-  NoteController -> IBlockDAO: batchInsert(blocks, tx)
-  NoteController -> IReferenceDAO: deleteByNote(pageId, tx)
-  NoteController -> IReferenceDAO: batchInsert(pageId, paperIds, tx)
-  NoteController -> ISearchDAO: insertTask("note", pageId, tx)
-  NoteController -> IUnitOfWork: commit(tx)
-  alt 提交成功
+  NoteController -> IBlockDAO: deleteByPage(pageId)
+  NoteController -> IBlockDAO: batchInsert(blocks)
+  NoteController -> IReferenceDAO: deleteByNote(pageId)
+  NoteController -> IReferenceDAO: batchInsert(pageId, paperIds)
+  NoteController -> ISearchDAO: insertTask("note", pageId)
+  alt 写入成功
+    NoteController -> NoteController: 提交事务
     NoteController -> NoteUI: return Result(success=true, data=receipt)
     NoteUI -> 用户: show 已保存
   else 写入失败
-    NoteController -> IUnitOfWork: rollback(tx)
+    NoteController -> NoteController: 回滚事务
     NoteController -> NoteUI: return Result(success=false, code=STORAGE_FAILED)
     NoteUI -> 用户: show 保存失败，保留草稿并提供重试
   end
 else 版本冲突或校验失败
-  NoteController -> IUnitOfWork: rollback(tx)
+  NoteController -> NoteController: 回滚事务
   NoteController -> NoteUI: return Result(success=false, code=VERSION_CONFLICT／INVALID_ARGUMENT)
   NoteUI -> 用户: show 保留草稿并显示原因
 end

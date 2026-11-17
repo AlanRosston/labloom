@@ -40,22 +40,31 @@ class FeedItem {
 
 ' ===== DAO 接口 =====
 interface IWorkspaceDAO {
-  + insertMeta(workspace: Workspace, tx: Tx): void
+  + checkDirectory(path: String, mode: String): Result<String>
+  + lock(rootPath: String): Result<Void>
+  + unlock(): void
+  + initLayout(rootPath: String): void
+  + removeLayout(rootPath: String): void
+  + openDatabase(rootPath: String): void
+  + closeDatabase(): void
+  + migrate(fromVersion: Integer): Result<Integer>
+  + insertMeta(workspace: Workspace): void
   + selectMeta(): Workspace
   + selectSchemaVersion(): Integer
 }
 interface IFeedSourceDAO {
-  + insert(source: FeedSource, tx: Tx): void
-  + update(source: FeedSource, tx: Tx): void
-  + updateRefreshTime(sourceId: UUID, time: Timestamp, tx: Tx): void
-  + delete(sourceId: UUID, tx: Tx): void
+  + insert(source: FeedSource): void
+  + update(source: FeedSource): void
+  + updateRefreshTime(sourceId: UUID, time: Timestamp): void
+  + delete(sourceId: UUID): void
   + selectAll(): List<FeedSource>
   + selectById(sourceId: UUID): FeedSource
   + selectByUrl(url: String): FeedSource
+  + fetchFeed(url: String, timeoutMs: Integer): Result<ParsedFeed>
 }
 interface IFeedItemDAO {
-  + insert(item: FeedItem, tx: Tx): void
-  + updateRead(itemId: UUID, tx: Tx): void
+  + insert(item: FeedItem): void
+  + updateRead(itemId: UUID): void
   + selectById(itemId: UUID): FeedItem
   + selectByUrl(url: String): FeedItem
   + selectPage(filter: FeedFilter, page: Integer): PageResult<FeedItem>

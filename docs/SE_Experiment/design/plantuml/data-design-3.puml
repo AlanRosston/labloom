@@ -2,20 +2,20 @@
 !include _style_sample.iuml
 left to right direction
 
-' ===== 数据传输对象 =====
-class SearchDocument <<DTO>> {
+' ===== 检索数据对象 =====
+class SearchDocument {
   - kind: String
   - targetId: UUID
   - title: String
   - searchText: String
   - updatedAt: Timestamp
 }
-class IndexTask <<DTO>> {
+class IndexTask {
   - kind: String
   - targetId: UUID
   - revision: Integer
 }
-class IndexStatus <<DTO>> {
+class IndexStatus {
   - status: String
   - processed: Integer
   - total: Integer
@@ -24,10 +24,10 @@ class IndexStatus <<DTO>> {
 
 ' ===== DAO 接口 =====
 interface ISearchDAO {
-  + insertTask(kind: String, targetId: UUID, tx: Tx): void
-  + deleteTask(task: IndexTask, tx: Tx): void
-  + updateDocument(document: SearchDocument, terms: List<String>, tx: Tx): void
-  + updateStatus(status: String, errorCode: String, tx: Tx): void
+  + insertTask(kind: String, targetId: UUID): void
+  + deleteTask(task: IndexTask): void
+  + updateDocument(document: SearchDocument, terms: List<String>): void
+  + updateStatus(status: String, errorCode: String): void
   + selectPendingTasks(limit: Integer): List<IndexTask>
   + selectCandidates(terms: List<String>, scope: String): List<SearchDocument>
   + selectStatus(): IndexStatus

@@ -3,56 +3,50 @@
 actor 用户
 boundary WorkspaceUI
 control WorkspaceController
-participant IFileDialog
-participant IFileStore
-participant IWorkspaceLock
-participant IUnitOfWork
-participant IMigrationRunner
 participant IWorkspaceDAO
 participant IAttachmentDAO
-participant IIndexService
+participant IIndexController
 
 用户 -> WorkspaceUI: openWorkspace()
-WorkspaceUI -> WorkspaceController: openWorkspace()
-WorkspaceController -> IFileDialog: chooseDirectory("open")
-IFileDialog -> WorkspaceController: return path
+WorkspaceUI -> WorkspaceUI: 显示目录选择窗口
 alt 用户取消选择
-  WorkspaceController -> WorkspaceUI: return Result(success=false, code=CANCELLED)
+  WorkspaceUI -> WorkspaceUI: 返回 Result(success=false, code=CANCELLED)
 else 已选定目录
-  WorkspaceController -> IFileStore: checkDirectory(path, "open")
-  IFileStore -> WorkspaceController: return rootPath
-  WorkspaceController -> IWorkspaceLock: acquire(rootPath)
-  IWorkspaceLock -> WorkspaceController: return lockHandle
+  WorkspaceUI -> WorkspaceController: openWorkspace(path)
+  WorkspaceController -> IWorkspaceDAO: checkDirectory(path, "open")
+  IWorkspaceDAO -> WorkspaceController: return rootPath
+  WorkspaceController -> IWorkspaceDAO: lock(rootPath)
+  IWorkspaceDAO -> WorkspaceController: return Result
   alt 工作区结构无效或已被其他实例打开
     WorkspaceController -> WorkspaceUI: return Result(success=false, code=WORKSPACE_INVALID／WORKSPACE_BUSY)
   else 取得锁
-    WorkspaceController -> IUnitOfWork: open(dbPath)
+    WorkspaceController -> IWorkspaceDAO: openDatabase(rootPath)
     WorkspaceController -> IWorkspaceDAO: selectSchemaVersion()
     IWorkspaceDAO -> WorkspaceController: return schemaVersion
     opt schemaVersion 低于当前版本
-      WorkspaceController -> IMigrationRunner: migrate(schemaVersion)
-      IMigrationRunner -> IFileStore: backupDatabase(dbPath)
-      IMigrationRunner -> WorkspaceController: return Result(newVersion)
+      WorkspaceController -> IWorkspaceDAO: migrate(schemaVersion)
+      IWorkspaceDAO -> IWorkspaceDAO: 生成数据库保护副本，在事务中迁移
+      IWorkspaceDAO -> WorkspaceController: return Result(newVersion)
     end
     WorkspaceController -> IWorkspaceDAO: selectMeta()
     IWorkspaceDAO -> WorkspaceController: return workspace
-    WorkspaceController -> IFileStore: listPendingImports()
-    IFileStore -> WorkspaceController: return ticketList
+    WorkspaceController -> IAttachmentDAO: selectPendingImports()
+    IAttachmentDAO -> WorkspaceController: return ticketList
     loop 每条未完成导入
       WorkspaceController -> IAttachmentDAO: selectById(attachmentId)
       IAttachmentDAO -> WorkspaceController: return attachment
       alt 附件记录存在
-        WorkspaceController -> IFileStore: finishImport(ticket)
+        WorkspaceController -> IAttachmentDAO: finishImport(ticket)
       else 附件记录缺失
-        WorkspaceController -> IFileStore: rollbackImport(ticket)
+        WorkspaceController -> IAttachmentDAO: rollbackImport(ticket)
       end
     end
     alt 打开成功
-      WorkspaceController -> IIndexService: start()
-      WorkspaceController -> WorkspaceUI: return Result(success=true, data=session)
+      WorkspaceController -> IIndexController: start()
+      WorkspaceController -> WorkspaceUI: return Result(success=true, data=workspace)
     else 迁移或读写失败
-      WorkspaceController -> IUnitOfWork: close()
-      WorkspaceController -> IWorkspaceLock: release(lockHandle)
+      WorkspaceController -> IWorkspaceDAO: closeDatabase()
+      WorkspaceController -> IWorkspaceDAO: unlock()
       WorkspaceController -> WorkspaceUI: return Result(success=false, code=MIGRATION_FAILED／STORAGE_FAILED)
     end
   end

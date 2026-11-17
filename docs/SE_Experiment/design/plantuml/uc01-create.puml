@@ -3,46 +3,39 @@
 actor 用户
 boundary WorkspaceUI
 control WorkspaceController
-participant IFileDialog
-participant IFileStore
-participant IWorkspaceLock
-participant IUnitOfWork
-participant IMigrationRunner
 participant IWorkspaceDAO
-participant IIndexService
+participant IIndexController
 entity Workspace
 
 用户 -> WorkspaceUI: createWorkspace(name)
-WorkspaceUI -> WorkspaceController: createWorkspace(name)
-WorkspaceController -> IFileDialog: chooseDirectory("create")
-IFileDialog -> WorkspaceController: return path
+WorkspaceUI -> WorkspaceUI: 显示目录选择窗口
 alt 用户取消选择
-  WorkspaceController -> WorkspaceUI: return Result(success=false, code=CANCELLED)
+  WorkspaceUI -> WorkspaceUI: 返回 Result(success=false, code=CANCELLED)
 else 已选定目录
-  WorkspaceController -> IFileStore: checkDirectory(path, "create")
-  IFileStore -> WorkspaceController: return rootPath
-  WorkspaceController -> IWorkspaceLock: acquire(rootPath)
-  IWorkspaceLock -> WorkspaceController: return lockHandle
+  WorkspaceUI -> WorkspaceController: createWorkspace(name, path)
+  WorkspaceController -> IWorkspaceDAO: checkDirectory(path, "create")
+  IWorkspaceDAO -> WorkspaceController: return rootPath
+  WorkspaceController -> IWorkspaceDAO: lock(rootPath)
+  IWorkspaceDAO -> WorkspaceController: return Result
   alt 目录无效或已被其他实例打开
     WorkspaceController -> WorkspaceUI: return Result(success=false, code=INVALID_ARGUMENT／WORKSPACE_BUSY)
   else 目录有效且取得锁
-    WorkspaceController -> IFileStore: initLayout(rootPath)
-    WorkspaceController -> IUnitOfWork: open(dbPath)
-    WorkspaceController -> IMigrationRunner: migrate(0)
-    IMigrationRunner -> WorkspaceController: return schemaVersion
+    WorkspaceController -> IWorkspaceDAO: initLayout(rootPath)
+    WorkspaceController -> IWorkspaceDAO: openDatabase(rootPath)
+    WorkspaceController -> IWorkspaceDAO: migrate(0)
+    IWorkspaceDAO -> WorkspaceController: return schemaVersion
     WorkspaceController -> Workspace: new Workspace(name)
-    WorkspaceController -> IUnitOfWork: begin()
-    IUnitOfWork -> WorkspaceController: return tx
-    WorkspaceController -> IWorkspaceDAO: insertMeta(workspace, tx)
-    WorkspaceController -> IUnitOfWork: commit(tx)
+    WorkspaceController -> WorkspaceController: 开启事务
+    WorkspaceController -> IWorkspaceDAO: insertMeta(workspace)
     alt 初始化成功
-      WorkspaceController -> IIndexService: start()
-      WorkspaceController -> WorkspaceUI: return Result(success=true, data=session)
+      WorkspaceController -> WorkspaceController: 提交事务
+      WorkspaceController -> IIndexController: start()
+      WorkspaceController -> WorkspaceUI: return Result(success=true, data=workspace)
     else 初始化失败
-      WorkspaceController -> IUnitOfWork: rollback(tx)
-      WorkspaceController -> IUnitOfWork: close()
-      WorkspaceController -> IFileStore: removeLayout(rootPath)
-      WorkspaceController -> IWorkspaceLock: release(lockHandle)
+      WorkspaceController -> WorkspaceController: 回滚事务
+      WorkspaceController -> IWorkspaceDAO: closeDatabase()
+      WorkspaceController -> IWorkspaceDAO: removeLayout(rootPath)
+      WorkspaceController -> IWorkspaceDAO: unlock()
       WorkspaceController -> WorkspaceUI: return Result(success=false, code=STORAGE_FAILED)
     end
   end

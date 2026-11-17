@@ -17,35 +17,35 @@ interface INoteController {
   + saveNote(input: NoteSaveInput): Result<SaveReceipt>
 }
 interface IPaperController {
-  + importPDF(): Result<PaperPage>
+  + importPDF(path: String): Result<PaperPage>
   + listPapers(page: Integer): Result<PageResult<PaperPage>>
   + readPDF(paperId: UUID): Result<PDFResource>
 }
 interface IPageDAO {
-  + insert(page: Page, tx: Tx): void
-  + updateNote(note: NotePage, expectedVersion: Integer, tx: Tx): Integer
+  + insert(page: Page): void
+  + updateNote(note: NotePage, expectedVersion: Integer): Integer
   + selectById(pageId: UUID): Page
   + selectByIds(pageIds: List<UUID>): List<Page>
   + selectByKind(kind: String, page: Integer): PageResult<Page>
   + selectIndexInput(): List<Page>
 }
 interface IBlockDAO {
-  + batchInsert(blocks: List<Block>, tx: Tx): void
-  + deleteByPage(pageId: UUID, tx: Tx): void
+  + batchInsert(blocks: List<Block>): void
+  + deleteByPage(pageId: UUID): void
   + selectByPage(pageId: UUID): List<Block>
   + selectByIds(blockIds: List<UUID>): List<Block>
   + selectNoteText(pageId: UUID): String
 }
 interface IReferenceDAO {
-  + batchInsert(noteId: UUID, paperIds: List<UUID>, tx: Tx): void
-  + deleteByNote(noteId: UUID, tx: Tx): void
+  + batchInsert(noteId: UUID, paperIds: List<UUID>): void
+  + deleteByNote(noteId: UUID): void
   + selectByNote(noteId: UUID): List<UUID>
 }
 interface ISearchDAO {
-  + insertTask(kind: String, targetId: UUID, tx: Tx): void
-  + deleteTask(task: IndexTask, tx: Tx): void
-  + updateDocument(document: SearchDocument, terms: List<String>, tx: Tx): void
-  + updateStatus(status: String, errorCode: String, tx: Tx): void
+  + insertTask(kind: String, targetId: UUID): void
+  + deleteTask(task: IndexTask): void
+  + updateDocument(document: SearchDocument, terms: List<String>): void
+  + updateStatus(status: String, errorCode: String): void
   + selectPendingTasks(limit: Integer): List<IndexTask>
   + selectCandidates(terms: List<String>, scope: String): List<SearchDocument>
   + selectStatus(): IndexStatus

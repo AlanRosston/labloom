@@ -3,26 +3,41 @@
 left to right direction
 
 interface IWorkspaceUI {
-  + createWorkspace(name: String): Result<WorkspaceSession>
-  + openWorkspace(): Result<WorkspaceSession>
+  + createWorkspace(name: String): Result<Workspace>
+  + openWorkspace(): Result<Workspace>
   + closeWorkspace(): Result<Void>
 }
 interface IWorkspaceController {
-  + createWorkspace(name: String): Result<WorkspaceSession>
-  + openWorkspace(): Result<WorkspaceSession>
+  + createWorkspace(name: String, path: String): Result<Workspace>
+  + openWorkspace(path: String): Result<Workspace>
   + closeWorkspace(): Result<Void>
 }
 interface IWorkspaceDAO {
-  + insertMeta(workspace: Workspace, tx: Tx): void
+  + checkDirectory(path: String, mode: String): Result<String>
+  + lock(rootPath: String): Result<Void>
+  + unlock(): void
+  + initLayout(rootPath: String): void
+  + removeLayout(rootPath: String): void
+  + openDatabase(rootPath: String): void
+  + closeDatabase(): void
+  + migrate(fromVersion: Integer): Result<Integer>
+  + insertMeta(workspace: Workspace): void
   + selectMeta(): Workspace
   + selectSchemaVersion(): Integer
 }
 interface IAttachmentDAO {
-  + insert(attachment: Attachment, tx: Tx): void
+  + insert(attachment: Attachment): void
   + selectById(attachmentId: UUID): Attachment
   + selectByPaper(paperId: UUID): Attachment
+  + checkFile(path: String): Result<Integer>
+  + prepareImport(path: String, attachmentId: UUID): ImportTicket
+  + publishImport(ticket: ImportTicket): String
+  + finishImport(ticket: ImportTicket): void
+  + rollbackImport(ticket: ImportTicket): Boolean
+  + selectPendingImports(): List<ImportTicket>
+  + readFile(relativePath: String): Byte[]
 }
-interface IIndexService {
+interface IIndexController {
   + start(): void
   + stop(): void
   + getStatus(): IndexStatus
@@ -52,7 +67,7 @@ WorkspaceDAO ..|> IWorkspaceDAO
 WorkspaceUI ..> IWorkspaceController
 WorkspaceController ..> IWorkspaceDAO
 WorkspaceController ..> IAttachmentDAO
-WorkspaceController ..> IIndexService
+WorkspaceController ..> IIndexController
 
 ' DAO 与实体（使用关系）
 WorkspaceDAO ..> Workspace : 使用

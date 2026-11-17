@@ -1,97 +1,70 @@
 @startuml 知织体系结构图
 !include _style_sample.iuml
 skinparam componentStyle uml1
+skinparam nodesep 60
 
-package "表示层（渲染进程）" as PL {
+package "表示层" as PL {
   interface IWorkspaceUI
-  [WorkspaceUI] - IWorkspaceUI
   interface ISourceUI
-  [SourceUI] - ISourceUI
   interface IFeedUI
-  [FeedUI] - IFeedUI
   interface IPaperUI
-  [PaperUI] - IPaperUI
   interface INoteUI
-  [NoteUI] - INoteUI
   interface ISearchUI
+
+  [WorkspaceUI] - IWorkspaceUI
+  [SourceUI] - ISourceUI
+  [FeedUI] - IFeedUI
+  [PaperUI] - IPaperUI
+  [NoteUI] - INoteUI
   [SearchUI] - ISearchUI
-  [WorkspaceUI] -[hidden]down- [PaperUI]
-  [SourceUI] -[hidden]down- [NoteUI]
-  [FeedUI] -[hidden]down- [SearchUI]
 }
 
-package "跨进程桥接（preload／IPC）" as BR {
-  interface IAppAPI
-  [AppAPI] - IAppAPI
-  [IPCHandler]
-}
-
-package "业务逻辑层（主进程）" as BL {
+package "业务逻辑层" as BL {
   interface IWorkspaceController
-  [WorkspaceController] -up- IWorkspaceController
   interface ISourceController
-  [SourceController] -up- ISourceController
   interface IRefreshController
-  [RefreshController] -up- IRefreshController
   interface IPaperController
-  [PaperController] -up- IPaperController
   interface INoteController
-  [NoteController] -up- INoteController
   interface ISearchController
+  interface IIndexController
+
+  [WorkspaceController] -up- IWorkspaceController
+  [SourceController] -up- ISourceController
+  [RefreshController] -up- IRefreshController
+  [PaperController] -up- IPaperController
+  [NoteController] -up- INoteController
   [SearchController] -up- ISearchController
-  interface IIndexService
-  [IndexService] -up- IIndexService
+  [IndexController] -up- IIndexController
   [WorkspaceController] -[hidden]down- [NoteController]
   [SourceController] -[hidden]down- [SearchController]
-  [RefreshController] -[hidden]down- [IndexService]
-}
-
-package "平台服务（主进程）" as PS {
-  interface IFileDialog
-  [FileDialog] - IFileDialog
-  interface IFileStore
-  [FileStore] - IFileStore
-  interface IWorkspaceLock
-  [WorkspaceLock] - IWorkspaceLock
-  interface IFeedGateway
-  [FeedGateway] - IFeedGateway
-  interface IExternalBrowser
-  [ExternalBrowser] - IExternalBrowser
-  [FileDialog] -[hidden]down- [WorkspaceLock]
-  [FileStore] -[hidden]down- [FeedGateway]
-  [WorkspaceLock] -[hidden]down- [ExternalBrowser]
+  [RefreshController] -[hidden]down- [IndexController]
 }
 
 package "数据访问层（DAO）" as DAL {
   interface IWorkspaceDAO
-  [WorkspaceDAO] - IWorkspaceDAO
   interface IFeedSourceDAO
-  [FeedSourceDAO] - IFeedSourceDAO
   interface IFeedItemDAO
-  [FeedItemDAO] - IFeedItemDAO
   interface IPageDAO
-  [PageDAO] - IPageDAO
   interface IBlockDAO
-  [BlockDAO] - IBlockDAO
   interface IAttachmentDAO
-  [AttachmentDAO] - IAttachmentDAO
   interface IReferenceDAO
-  [ReferenceDAO] - IReferenceDAO
   interface ISearchDAO
-  [SearchDAO] - ISearchDAO
-  interface IUnitOfWork
-  [UnitOfWork] - IUnitOfWork
-  interface IMigrationRunner
-  [MigrationRunner] - IMigrationRunner
+
+  [WorkspaceDAO] -up- IWorkspaceDAO
+  [FeedSourceDAO] -up- IFeedSourceDAO
+  [FeedItemDAO] -up- IFeedItemDAO
+  [PageDAO] -up- IPageDAO
+  [BlockDAO] -up- IBlockDAO
+  [AttachmentDAO] -up- IAttachmentDAO
+  [ReferenceDAO] -up- IReferenceDAO
+  [SearchDAO] -up- ISearchDAO
   [WorkspaceDAO] -[hidden]down- [BlockDAO]
   [FeedSourceDAO] -[hidden]down- [AttachmentDAO]
   [FeedItemDAO] -[hidden]down- [ReferenceDAO]
   [PageDAO] -[hidden]down- [SearchDAO]
-  [BlockDAO] -[hidden]down- [UnitOfWork]
-  [AttachmentDAO] -[hidden]down- [MigrationRunner]
 }
 
-database "数据库（workspace.sqlite）" as DB {
+database "数据库" as DB {
   [workspace_meta]
   [schema_migrations]
   [feed_sources]
@@ -131,42 +104,63 @@ package "实体类（PO）" as PO {
   [Page] -[hidden]down- [Attachment]
 }
 
-' 版面：各层自上而下排列，平台服务位于业务逻辑层右侧
-PL -[hidden]down- BR
-BR -[hidden]down- BL
-DB -[hidden]right- PO
-[NoteController] -[hidden]down- [FeedSourceDAO]
-[IndexService] -[hidden]down- [PageDAO]
-[UnitOfWork] -[hidden]down- DB
-' 表示层经 AppAPI 发起请求
-WorkspaceUI ..> IAppAPI
-SourceUI ..> IAppAPI
-FeedUI ..> IAppAPI
-PaperUI ..> IAppAPI
-NoteUI ..> IAppAPI
-SearchUI ..> IAppAPI
-AppAPI ..> IPCHandler : IPC
-' 桥接层调用业务逻辑层
-IPCHandler ..> IWorkspaceController
-IPCHandler ..> ISourceController
-IPCHandler ..> IRefreshController
-IPCHandler ..> IPaperController
-IPCHandler ..> INoteController
-IPCHandler ..> ISearchController
-' 层间依赖（构件级依赖见 2.2 构件表与 5.2 构件级类图）
-BL .down.> DAL : 调用 DAO 接口
-BL .right.> PS : 调用平台服务接口
-' DAO 访问数据库
-WorkspaceDAO -down-> DB
-FeedSourceDAO -down-> DB
-FeedItemDAO -down-> DB
-PageDAO -down-> DB
-BlockDAO -down-> DB
-AttachmentDAO -down-> DB
-ReferenceDAO -down-> DB
-SearchDAO -down-> DB
-MigrationRunner -down-> DB
-' 实体类被使用（虚线表示使用关系，不参与调用链）
-DAL .down.> PO : 使用
-BL ..> PO : 使用
+' 版面：表示层、业务逻辑层、数据访问层自上而下，数据库与实体类在最下方
+[WorkspaceUI] -[hidden]down- IWorkspaceController
+[IndexController] -[hidden]down- IWorkspaceDAO
+[SearchDAO] -[hidden]down- [workspace_meta]
+' 表示层依赖业务逻辑层（含 SearchUI 打开检索结果）
+WorkspaceUI ..> IWorkspaceController
+SourceUI ..> ISourceController
+FeedUI ..> IRefreshController
+PaperUI ..> IPaperController
+NoteUI ..> INoteController
+NoteUI ..> IPaperController
+SearchUI ..> ISearchController
+SearchUI ..> INoteUI
+SearchUI ..> IPaperUI
+SearchUI ..> IFeedUI
+' 业务逻辑层依赖 DAO 层
+WorkspaceController ..> IWorkspaceDAO
+WorkspaceController ..> IAttachmentDAO
+WorkspaceController ..> IIndexController
+SourceController ..> IFeedSourceDAO
+RefreshController ..> IFeedSourceDAO
+RefreshController ..> IFeedItemDAO
+RefreshController ..> ISearchDAO
+PaperController ..> IPageDAO
+PaperController ..> IAttachmentDAO
+PaperController ..> ISearchDAO
+NoteController ..> IPageDAO
+NoteController ..> IBlockDAO
+NoteController ..> IReferenceDAO
+NoteController ..> ISearchDAO
+SearchController ..> IIndexController
+SearchController ..> ISearchDAO
+IndexController ..> ISearchDAO
+IndexController ..> IPageDAO
+IndexController ..> IBlockDAO
+IndexController ..> IFeedItemDAO
+' DAO 使用实体类（虚线表示使用关系，不是调用）
+WorkspaceDAO ..> Workspace : 使用
+FeedSourceDAO ..> FeedSource : 使用
+FeedItemDAO ..> FeedItem : 使用
+PageDAO ..> Page : 使用
+PageDAO ..> NotePage : 使用
+PageDAO ..> PaperPage : 使用
+BlockDAO ..> Block : 使用
+AttachmentDAO ..> Attachment : 使用
+' DAO 层访问数据库（见 3.4）
+WorkspaceDAO --> [workspace_meta]
+WorkspaceDAO --> [schema_migrations]
+FeedSourceDAO --> [feed_sources]
+FeedItemDAO --> [feed_items]
+PageDAO --> [pages]
+PageDAO --> [paper_metadata]
+BlockDAO --> [blocks]
+AttachmentDAO --> [attachments]
+ReferenceDAO --> [note_paper_refs]
+SearchDAO --> [search_documents]
+SearchDAO --> [search_terms]
+SearchDAO --> [index_queue]
+SearchDAO --> [index_state]
 @enduml

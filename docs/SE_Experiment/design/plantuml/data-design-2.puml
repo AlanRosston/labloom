@@ -53,28 +53,35 @@ class Attachment {
 
 ' ===== DAO 接口 =====
 interface IPageDAO {
-  + insert(page: Page, tx: Tx): void
-  + updateNote(note: NotePage, expectedVersion: Integer, tx: Tx): Integer
+  + insert(page: Page): void
+  + updateNote(note: NotePage, expectedVersion: Integer): Integer
   + selectById(pageId: UUID): Page
   + selectByIds(pageIds: List<UUID>): List<Page>
   + selectByKind(kind: String, page: Integer): PageResult<Page>
   + selectIndexInput(): List<Page>
 }
 interface IBlockDAO {
-  + batchInsert(blocks: List<Block>, tx: Tx): void
-  + deleteByPage(pageId: UUID, tx: Tx): void
+  + batchInsert(blocks: List<Block>): void
+  + deleteByPage(pageId: UUID): void
   + selectByPage(pageId: UUID): List<Block>
   + selectByIds(blockIds: List<UUID>): List<Block>
   + selectNoteText(pageId: UUID): String
 }
 interface IAttachmentDAO {
-  + insert(attachment: Attachment, tx: Tx): void
+  + insert(attachment: Attachment): void
   + selectById(attachmentId: UUID): Attachment
   + selectByPaper(paperId: UUID): Attachment
+  + checkFile(path: String): Result<Integer>
+  + prepareImport(path: String, attachmentId: UUID): ImportTicket
+  + publishImport(ticket: ImportTicket): String
+  + finishImport(ticket: ImportTicket): void
+  + rollbackImport(ticket: ImportTicket): Boolean
+  + selectPendingImports(): List<ImportTicket>
+  + readFile(relativePath: String): Byte[]
 }
 interface IReferenceDAO {
-  + batchInsert(noteId: UUID, paperIds: List<UUID>, tx: Tx): void
-  + deleteByNote(noteId: UUID, tx: Tx): void
+  + batchInsert(noteId: UUID, paperIds: List<UUID>): void
+  + deleteByNote(noteId: UUID): void
   + selectByNote(noteId: UUID): List<UUID>
 }
 

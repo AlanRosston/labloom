@@ -3,8 +3,6 @@
 actor 用户
 boundary SourceUI
 control SourceController
-participant IFeedGateway
-participant IUnitOfWork
 participant IFeedSourceDAO
 entity FeedSource
 
@@ -17,14 +15,11 @@ IFeedSourceDAO -> SourceController: return existingSource
 alt 协议无效或地址重复
   SourceController -> SourceUI: return Result(success=false, code=PROTOCOL_REJECTED／SOURCE_DUPLICATE)
 else 地址可用
-  SourceController -> IFeedGateway: fetchAndParse(url, 30000)
-  IFeedGateway -> SourceController: return parsedFeed
+  SourceController -> IFeedSourceDAO: fetchFeed(url, 30000)
+  IFeedSourceDAO -> SourceController: return parsedFeed
   alt 获取并解析成功
     SourceController -> FeedSource: new FeedSource(name, url)
-    SourceController -> IUnitOfWork: begin()
-    IUnitOfWork -> SourceController: return tx
-    SourceController -> IFeedSourceDAO: insert(source, tx)
-    SourceController -> IUnitOfWork: commit(tx)
+    SourceController -> IFeedSourceDAO: insert(source)
     SourceController -> SourceUI: return Result(success=true, data=source)
   else 获取或解析失败
     SourceController -> SourceUI: return Result(success=false, code=NETWORK_TIMEOUT／NETWORK_FAILED／FEED_INVALID)
@@ -39,16 +34,14 @@ SourceController -> IFeedSourceDAO: selectById(sourceId)
 IFeedSourceDAO -> SourceController: return source
 opt 地址发生变化
   SourceController -> IFeedSourceDAO: selectByUrl(url)
-  SourceController -> IFeedGateway: fetchAndParse(url, 30000)
-  IFeedGateway -> SourceController: return parsedFeed
+  SourceController -> IFeedSourceDAO: fetchFeed(url, 30000)
+  IFeedSourceDAO -> SourceController: return parsedFeed
   SourceController -> FeedSource: changeUrl(url)
 end
 opt 名称发生变化
   SourceController -> FeedSource: rename(name)
 end
-SourceController -> IUnitOfWork: begin()
-SourceController -> IFeedSourceDAO: update(source, tx)
-SourceController -> IUnitOfWork: commit(tx)
+SourceController -> IFeedSourceDAO: update(source)
 SourceController -> SourceUI: return Result(success=true, data=source)
 SourceUI -> 用户: show sourceList
 
@@ -56,10 +49,8 @@ SourceUI -> 用户: show sourceList
 用户 -> SourceUI: removeSource(sourceId)
 SourceUI -> SourceUI: 显示确认对话框
 SourceUI -> SourceController: removeSource(sourceId)
-SourceController -> IUnitOfWork: begin()
-SourceController -> IFeedSourceDAO: delete(sourceId, tx)
+SourceController -> IFeedSourceDAO: delete(sourceId)
 note right of IFeedSourceDAO: feed_items.source_id 置空\n保留 source_name 与 is_read
-SourceController -> IUnitOfWork: commit(tx)
 SourceController -> SourceUI: return Result(success=true)
 SourceUI -> 用户: show sourceList
 @enduml
