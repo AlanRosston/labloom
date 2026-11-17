@@ -1,6 +1,5 @@
 @startuml NotePage 保存状态图
-!include _style.iuml
-hide empty description
+!include _style_sample.iuml
 [*] --> EDITING: 新建或打开笔记
 EDITING --> EDITING: 继续输入，重置静默计时
 EDITING --> SAVING: 停止输入满 1 秒或退出应用

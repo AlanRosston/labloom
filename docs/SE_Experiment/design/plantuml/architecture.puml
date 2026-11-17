@@ -1,5 +1,5 @@
 @startuml 知织体系结构图
-!include _style.iuml
+!include _style_sample.iuml
 skinparam componentStyle uml1
 
 package "表示层（渲染进程）" as PL {
@@ -91,7 +91,30 @@ package "数据访问层（DAO）" as DAL {
   [AttachmentDAO] -[hidden]down- [MigrationRunner]
 }
 
-database "数据库（workspace.sqlite）\nworkspace_meta · schema_migrations · feed_sources\nfeed_items · pages · paper_metadata\nblocks · note_paper_refs · attachments\nsearch_documents · search_terms · index_queue\nindex_state" as DB
+database "数据库（workspace.sqlite）" as DB {
+  [workspace_meta]
+  [schema_migrations]
+  [feed_sources]
+  [feed_items]
+  [pages]
+  [paper_metadata]
+  [blocks]
+  [note_paper_refs]
+  [attachments]
+  [search_documents]
+  [search_terms]
+  [index_queue]
+  [index_state]
+  [workspace_meta] -[hidden]down- [pages]
+  [schema_migrations] -[hidden]down- [paper_metadata]
+  [feed_sources] -[hidden]down- [blocks]
+  [feed_items] -[hidden]down- [note_paper_refs]
+  [pages] -[hidden]down- [attachments]
+  [paper_metadata] -[hidden]down- [search_documents]
+  [blocks] -[hidden]down- [search_terms]
+  [note_paper_refs] -[hidden]down- [index_queue]
+  [attachments] -[hidden]down- [index_state]
+}
 
 package "实体类（PO）" as PO {
   [Workspace]

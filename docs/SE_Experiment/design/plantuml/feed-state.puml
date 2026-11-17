@@ -1,6 +1,5 @@
 @startuml FeedSource 状态图
-!include _style.iuml
-hide empty description
+!include _style_sample.iuml
 [*] --> NORMAL: 添加来源成功或打开工作区
 NORMAL --> REFRESHING: 用户刷新
 REFRESHING --> NORMAL: 获取并写入成功

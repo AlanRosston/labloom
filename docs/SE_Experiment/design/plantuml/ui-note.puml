@@ -1,5 +1,5 @@
 @startuml UC05 界面交互时序图
-!include _style.iuml
+!include _style_sample.iuml
 actor 用户
 boundary NoteUI as "NoteUI\n（笔记界面）"
 participant AppAPI
@@ -17,9 +17,9 @@ else 校验通过
   AppAPI -> IPCHandler: IPC 请求
   IPCHandler -> IPCHandler: 校验发送窗口、参数与 sessionId
   IPCHandler -> NoteController: saveNote(input)
-  NoteController --> IPCHandler: return Result
-  IPCHandler --> AppAPI: IPC 响应
-  AppAPI --> NoteUI: return Result
+  NoteController -> IPCHandler: return Result
+  IPCHandler -> AppAPI: IPC 响应
+  AppAPI -> NoteUI: return Result
   alt 保存成功且 clientRevision 为最新批次
     NoteUI -> NoteUI: 更新 baseVersion，setSaveStatus("SAVED")
     NoteUI -> 用户: 状态栏显示绿色"已保存"

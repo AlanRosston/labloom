@@ -1395,7 +1395,7 @@
 
 ## 附录：PlantUML 代码
 
-' 公共样式 _style.iuml（体系结构图、状态图、界面图和部署图以 !include _style.iuml 引用）
+' 公共样式 _style.iuml（主窗口界面结构图和运行部署图引用，格式样本中无此两类图）
 ```plantuml
 skinparam defaultFontName Noto Sans CJK SC
 skinparam defaultFontSize 14
@@ -1517,7 +1517,7 @@ classDiagram {
 </style>
 ```
 
-' 样本样式 _style_sample.iuml（数据设计类图、接口交互顺序图和构件级类图引用，与《设计文档_格式样本》一致）
+' 样本样式 _style_sample.iuml（体系结构图、数据设计类图、顺序图、构件级类图、状态图和界面交互时序图引用，与《设计文档_格式样本》一致）
 ```plantuml
 ' 与《设计文档_格式样本》一致：使用 PlantUML 默认主题，只指定中文字体
 skinparam defaultFontName Noto Sans CJK SC
@@ -1525,7 +1525,7 @@ skinparam defaultFontName Noto Sans CJK SC
 
 ```plantuml
 @startuml 知织体系结构图
-!include _style.iuml
+!include _style_sample.iuml
 skinparam componentStyle uml1
 
 package "表示层（渲染进程）" as PL {
@@ -1617,7 +1617,30 @@ package "数据访问层（DAO）" as DAL {
   [AttachmentDAO] -[hidden]down- [MigrationRunner]
 }
 
-database "数据库（workspace.sqlite）\nworkspace_meta · schema_migrations · feed_sources\nfeed_items · pages · paper_metadata\nblocks · note_paper_refs · attachments\nsearch_documents · search_terms · index_queue\nindex_state" as DB
+database "数据库（workspace.sqlite）" as DB {
+  [workspace_meta]
+  [schema_migrations]
+  [feed_sources]
+  [feed_items]
+  [pages]
+  [paper_metadata]
+  [blocks]
+  [note_paper_refs]
+  [attachments]
+  [search_documents]
+  [search_terms]
+  [index_queue]
+  [index_state]
+  [workspace_meta] -[hidden]down- [pages]
+  [schema_migrations] -[hidden]down- [paper_metadata]
+  [feed_sources] -[hidden]down- [blocks]
+  [feed_items] -[hidden]down- [note_paper_refs]
+  [pages] -[hidden]down- [attachments]
+  [paper_metadata] -[hidden]down- [search_documents]
+  [blocks] -[hidden]down- [search_terms]
+  [note_paper_refs] -[hidden]down- [index_queue]
+  [attachments] -[hidden]down- [index_state]
+}
 
 package "实体类（PO）" as PO {
   [Workspace]
@@ -2824,8 +2847,7 @@ IndexService ..> IFeedItemDAO
 
 ```plantuml
 @startuml NotePage 保存状态图
-!include _style.iuml
-hide empty description
+!include _style_sample.iuml
 [*] --> EDITING: 新建或打开笔记
 EDITING --> EDITING: 继续输入，重置静默计时
 EDITING --> SAVING: 停止输入满 1 秒或退出应用
@@ -2841,8 +2863,7 @@ SAVED --> [*]: 关闭笔记
 
 ```plantuml
 @startuml FeedSource 状态图
-!include _style.iuml
-hide empty description
+!include _style_sample.iuml
 [*] --> NORMAL: 添加来源成功或打开工作区
 NORMAL --> REFRESHING: 用户刷新
 REFRESHING --> NORMAL: 获取并写入成功
@@ -2901,7 +2922,7 @@ FETCH_FAILED --> [*]: 移除来源
 
 ```plantuml
 @startuml UC05 界面交互时序图
-!include _style.iuml
+!include _style_sample.iuml
 actor 用户
 boundary NoteUI as "NoteUI\n（笔记界面）"
 participant AppAPI
@@ -2919,9 +2940,9 @@ else 校验通过
   AppAPI -> IPCHandler: IPC 请求
   IPCHandler -> IPCHandler: 校验发送窗口、参数与 sessionId
   IPCHandler -> NoteController: saveNote(input)
-  NoteController --> IPCHandler: return Result
-  IPCHandler --> AppAPI: IPC 响应
-  AppAPI --> NoteUI: return Result
+  NoteController -> IPCHandler: return Result
+  IPCHandler -> AppAPI: IPC 响应
+  AppAPI -> NoteUI: return Result
   alt 保存成功且 clientRevision 为最新批次
     NoteUI -> NoteUI: 更新 baseVersion，setSaveStatus("SAVED")
     NoteUI -> 用户: 状态栏显示绿色"已保存"
